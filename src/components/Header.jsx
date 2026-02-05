@@ -22,6 +22,10 @@ const Header = () => {
         return () => { document.body.style.overflow = 'unset'; };
     }, [isMobileMenuOpen]);
 
+    useEffect(() => {
+        setIsMobileMenuOpen(false);
+    }, [location.pathname]);
+
     // [로직] 유저 데이터 로드
     useEffect(() => {
         const userData = localStorage.getItem('user');
@@ -43,31 +47,21 @@ const Header = () => {
 
     // [로직] 로그아웃
     const handleLogout = () => {
-        if (window.confirm('로그아웃 하시겠습니까?')) {
+        // if (window.confirm('로그아웃 하시겠습니까?')) {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('user');
             setUser(null);
-            alert('로그아웃 되었습니다.');
+            // alert('로그아웃 되었습니다.');
             navigate('/shop/login');
-        }
+        // }
     };
 
-    const handleCartClick = (e) => {
-        if (!localStorage.getItem('user')) {
-            e.preventDefault();
-            alert('로그인이 필요한 서비스입니다.');
-            setIsMobileMenuOpen(false);
-            navigate('/shop/login');
-        } else {
-            setIsMobileMenuOpen(false);
-        }
-    };
 
     const menus = [
         { title: '나눔 컬렉션', url: '/shop/products', sub: [{ name: '이달의 추천', url: '/shop/products' }, { name: '위시리스트', url: '/shop/mypage/wishlist' }] },
         { title: '전체 상품', url: '/shop/products', sub: [{ name: '전체 보기', url: '/shop/products' }, { name: '신상품', url: '/shop/products' }] },
-        { title: '소식과 안내', url: '/shop/main', sub: [{ name: '공지사항', url: '/shop/main' }, { name: '브랜드 이야기', url: '/shop/main' }] },
-        { title: '나의 기록', url: '/shop/mypage', sub: [{ name: '주문/배송 조회', url: '/shop/mypage' }, { name: '내 정보 수정', url: '/shop/mypage' }] }
+        { title: '소식과 안내', url: '/shop/notice', sub: [{ name: '공지사항', url: '/shop/notice' }, { name: '브랜드 이야기', url: '/shop/main' }] },
+        { title: '나의 기록', url: '/shop/mypage', sub: [{ name: '주문/배송 조회', url: '/shop/mypage/orders' }, { name: '내 정보 수정', url: '/shop/mypage/edit' }] }
     ];
 
     return (
@@ -104,8 +98,12 @@ const Header = () => {
                         <div className="hidden md:flex items-center gap-4 text-[13px]">
                             {user ? (
                                 <div className="flex items-center gap-3">
-                                    <p className="text-[#343434] font-medium"><span className="text-[#968064] font-bold">{user.memberName}</span> 님</p>
-                                    <button onClick={handleLogout} className="px-3 py-1 border border-gray-200 rounded-sm text-gray-400 hover:text-black hover:border-gray-400 hover:bg-gray-50 transition-all">로그아웃</button>
+                                    <Link to="/shop/mypage/edit" className="text-[#343434] font-medium hover:text-[#968064] transition-colors group">
+                                    <span className="text-[#968064] font-bold border-b border-transparent group-hover:border-[#968064]">
+                                        {user.memberName}
+                                    </span> 님
+                                    </Link>
+                                    <button onClick={handleLogout} className="...">로그아웃</button>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-4">
@@ -115,7 +113,7 @@ const Header = () => {
                             )}
                         </div>
 
-                        <Link to="/shop/cart" onClick={handleCartClick} className="p-2 group relative flex items-center justify-center outline-none">
+                        <Link to="/shop/cart" className="p-2 group relative flex items-center justify-center outline-none">
                             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#343434] opacity-70 group-hover:opacity-100 group-hover:text-[#968064] transition-all">
                                 <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.1-5.38a1 1 0 0 0-1-1.2H6.14" />
                             </svg>
@@ -145,7 +143,7 @@ const Header = () => {
                                     <p className="text-xl font-bold"><span className="text-[#968064]">{user.memberName}</span>님</p>
                                     <button onClick={handleLogout} className="text-sm text-gray-400 underline underline-offset-4">로그아웃</button>
                                 </div>
-                                <Link to="/shop/cart" onClick={handleCartClick} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                <Link to="/shop/cart"  className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-100">
                                     <div className="flex items-center gap-3">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#343434]"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.1-5.38a1 1 0 0 0-1-1.2H6.14" /></svg>
                                         <span className="text-[15px] font-bold text-[#343434]">나의 장바구니</span>

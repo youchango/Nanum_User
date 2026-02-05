@@ -14,3 +14,18 @@
     ol, ul, li { list-style: none; }
     a { text-decoration: none; color: #000; }
 }
+
+.content-wrapper {
+    padding-top: 5rem; /* 모바일 헤더 높이만큼 */
+}
+
+@media (min-width: 768px) {
+    .content-wrapper {
+        padding-top: 8rem; /* PC 헤더 높이만큼 */
+    }
+}
+
+/* 메인 페이지는 여백 없이 헤더와 겹치게 (배너가 헤더 뒤로 들어감) */
+.main-wrapper {
+    padding-top: 0;
+}

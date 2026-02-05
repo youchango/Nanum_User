@@ -46,4 +46,19 @@ export const authService = {
             throw error.response?.data || { message: '가입 규격이 맞지 않습니다.' };
         }
     },
+    checkId: async (memberId, memberType = 'U') => {
+        try {
+            const response = await api.get('/members/check-id', {
+                // ⭐️ params 객체로 넘겨야 ?memberId=xxx&memberType=U 형태로 변환됩니다.
+                params: {
+                    memberId: memberId,
+                    memberType: memberType
+                }
+            });
+            return response.data; // { status: "200", data: true/false ... }
+        } catch (error) {
+            // 상세 에러 로그 확인을 위해 에러 전체를 던집니다.
+            throw error;
+        }
+    },
 };

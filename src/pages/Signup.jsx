@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import PolicyModal from '../components/PolicyModal';
 import { POLICY_DATA } from '../data/policyData';
 import { authService } from '../api/authService';
+import usePostcode from '../hooks/usePostcode';
 
 const Signup = () => {
     const navigate = useNavigate();
     const inputRef = useRef(null);
+    const { openPostcode } = usePostcode();
+
 
     // [상태 관리] 명세서 규격 반영
     const [formData, setFormData] = useState({
@@ -59,20 +62,14 @@ const Signup = () => {
 
     // [로직] 주소 검색창 열기
     const handleAddressSearch = () => {
-        if (!isPostcodeLoaded) {
-            alert("주소 서비스 로딩 중입니다. 잠시만 기다려주세요.");
-            return;
-        }
-        new window.daum.Postcode({
-            oncomplete: function(data) {
-                setFormData(prev => ({
-                    ...prev,
-                    zipcode: data.zonecode,
-                    address: data.address,
-                    addressDetail: ''
-                }));
-            }
-        }).open();
+        openPostcode((data) => {
+            setFormData(prev => ({
+                ...prev,
+                zipcode: data.zonecode,
+                address: data.address,
+                addressDetail: '' // 주소 선택 시 상세주소 초기화
+            }));
+        });
     };
 
     // [로직] 휴대폰 번호 하이픈 자동 생성
@@ -87,19 +84,34 @@ const Signup = () => {
     };
 
     // [로직] 아이디 중복 확인 (추후 API 연결 가능)
-    const checkDuplicateId = () => {
-        if (formData.memberId.length < 4) {
+    const checkDuplicateId = async () => {
+        // 1. 유효성 검사
+        if (!formData.memberId || formData.memberId.length < 4) {
             setIdStatus('error');
             setIdMessage('아이디는 최소 4자 이상이어야 합니다.');
             return;
         }
-        // 임시 로직 (실제로는 authService.checkId 같은 API 호출 권장)
-        if (formData.memberId === 'admin') {
+
+        try {
+            setIsLoading(true); // 로딩 상태 활성화
+
+            // 2. API 호출
+            const response = await authService.checkId(formData.memberId, formData.memberType);
+
+            // 3. 응답 처리 (data: true -> 중복, data: false -> 사용 가능)
+            if (response.data === true) {
+                setIdStatus('error');
+                setIdMessage('이미 사용 중인 아이디입니다.');
+            } else {
+                setIdStatus('success');
+                setIdMessage('사용 가능한 아이디입니다.');
+            }
+        } catch (err) {
+            console.error("아이디 중복 확인 실패:", err);
             setIdStatus('error');
-            setIdMessage('이미 사용 중인 아이디입니다.');
-        } else {
-            setIdStatus('success');
-            setIdMessage('사용 가능한 아이디입니다.');
+            setIdMessage(err.message || '서버와의 통신에 실패했습니다.');
+        } finally {
+            setIsLoading(false);
         }
     };
 

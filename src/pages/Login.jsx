@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../api/authService';
 
 const Login = () => {
     const navigate = useNavigate();
+    const location = useLocation();
 
-    // 상태 관리 (명세서 규격 loginId 확인 완료)
+    // 상태 관리
     const [loginId, setLoginId] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // ⭐️ PrivateRoute나 ProductDetail에서 넘겨준 목적지와 상품 데이터를 추출합니다.
+    const from = location.state?.from || '/shop/main';
+    const directOrderData = location.state?.directOrderData;
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -19,7 +24,6 @@ const Login = () => {
             const response = await authService.login(loginId, password);
             console.log('2. 서버 응답 데이터:', response);
 
-            // 💡 수정된 조건: status가 "SUCCESS"이거나 "200" 또는 "OK"인 경우 모두 허용
             const isSuccess =
                 response.status === "SUCCESS" ||
                 response.status === "200" ||
@@ -28,28 +32,28 @@ const Login = () => {
             if (isSuccess) {
                 console.log('3. 로그인 검증 통과');
 
-                // 데이터 구조가 response.data.data 형태인지 확인 필요
                 const authData = response.data;
 
-                // 토큰 저장 (accessToken만 저장하고 refreshToken은 쿠키가 알아서 하게 둡니다)
                 if (authData.accessToken) {
                     localStorage.setItem('accessToken', authData.accessToken);
                 }
 
-                // 사용자 정보 저장
                 if (authData.memberInfo) {
                     localStorage.setItem('user', JSON.stringify(authData.memberInfo));
                 }
 
-                // alert(`${authData.memberInfo?.memberName || '회원'}님, 환영합니다!`);
-                navigate('/shop/main');
+                // ⭐️ 핵심 수정: 목적지로 이동할 때, 보관해둔 상품 데이터(directOrderData)를 다시 실어서 보냅니다.
+                // 만약 directOrderData가 있다면 Checkout 페이지로 전달되고, 없으면 일반 리다이렉트가 됩니다.
+                navigate(from, {
+                    replace: true,
+                    state: directOrderData ? { ...directOrderData } : null
+                });
+
             } else {
-                // SUCCESS가 아닌 다른 응답이 왔을 때 (예: ERROR)
                 alert(response.message || '로그인 정보를 다시 확인해주세요.');
             }
         } catch (err) {
             console.error('❌ 4. 에러 발생:', err);
-            // 에러 메시지가 깨진다면 기본 메시지 출력
             const msg = err.message && !err.message.includes('?') ? err.message : '아이디 또는 비밀번호가 일치하지 않습니다.';
             alert(msg);
         } finally {
@@ -72,7 +76,7 @@ const Login = () => {
                         <input
                             type="text"
                             value={loginId}
-                            onChange={(e) => setLoginId(e.target.value)} // 수정된 부분
+                            onChange={(e) => setLoginId(e.target.value)}
                             className="w-full border border-gray-200 px-4 py-3.5 text-sm focus:border-[#333] outline-none transition-all bg-[#f9f9f9] focus:bg-white"
                             placeholder="아이디를 입력해주세요"
                             required
@@ -107,7 +111,6 @@ const Login = () => {
                     </button>
                 </form>
 
-                {/* 하단 생략 (기존과 동일) */}
                 <div className="relative my-10 border-t border-gray-100">
                     <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-4 text-[11px] text-gray-300 uppercase tracking-widest">or</span>
                 </div>

@@ -4,9 +4,7 @@ const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
     const [cartItems, setCartItems] = useState([]);
-    // ⭐️ [추가] 선택된 아이템 ID들을 전역에서 관리 (페이지 이동 시 유지용)
     const [selectedIds, setSelectedIds] = useState([]);
-    // ⭐️ [추가] 최초 로드 여부 파악
     const [isInitialized, setIsInitialized] = useState(false);
 
     // 1. 로컬스토리지를 읽어오는 공통 함수
@@ -14,7 +12,6 @@ export const CartProvider = ({ children }) => {
         const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
         setCartItems(savedCart);
 
-        // ⭐️ 최초 로드 시에만 모든 아이템을 선택 상태로 설정
         if (!isInitialized && savedCart.length > 0) {
             setSelectedIds(savedCart.map(item => item.id));
             setIsInitialized(true);
@@ -33,11 +30,10 @@ export const CartProvider = ({ children }) => {
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('cartUpdate', handleStorageChange);
         };
-    }, [isInitialized]); // 초기화 플래그에 따라 재실행 방지
+    }, [isInitialized]);
 
     // 3. 상태 업데이트 및 스토리지 저장 통합 함수
     const saveCart = (newItems) => {
-        // ⭐️ 상품이 삭제된 경우 selectedIds에서도 해당 ID를 제거
         const newItemIds = newItems.map(item => item.id);
         setSelectedIds(prev => prev.filter(id => newItemIds.includes(id)));
 
@@ -49,9 +45,16 @@ export const CartProvider = ({ children }) => {
     // [로직] 장바구니 추가
     const addToCart = (product, quantity = 1) => {
         const user = localStorage.getItem('user');
+
+        // ⭐️ [수정] 로그인 체크 및 알림 추가
         if (!user) {
-            alert('로그인이 필요한 서비스입니다.');
-            window.location.href = '/shop/login';
+            alert('로그인이 필요한 서비스입니다. 로그인 페이지로 이동합니다.');
+
+            // 현재 페이지의 경로를 세션 스토리지 등에 임시 저장하거나,
+            // 쿼리 파라미터를 통해 전달할 수 있습니다.
+            // 여기서는 가장 직관적인 알림 후 이동 방식을 사용합니다.
+            const currentPath = window.location.pathname;
+            window.location.href = `/shop/login?redirect=${currentPath}`;
             return;
         }
 
@@ -69,7 +72,6 @@ export const CartProvider = ({ children }) => {
                 image: product.image || product.img,
                 quantity: quantity
             }];
-            // ⭐️ 새로 추가된 상품은 자동으로 선택 목록에 추가
             setSelectedIds(prev => [...prev, product.id]);
         }
 
@@ -92,7 +94,7 @@ export const CartProvider = ({ children }) => {
     const removeItem = (id) => {
         if (window.confirm('장바구니에서 삭제하시겠습니까?')) {
             const newCart = cartItems.filter(item => item.id !== id);
-            saveCart(newCart); // saveCart 내부에서 selectedIds도 함께 정리됨
+            saveCart(newCart);
         }
     };
 
@@ -105,8 +107,8 @@ export const CartProvider = ({ children }) => {
             addToCart,
             updateQuantity,
             removeItem,
-            selectedIds,   // ⭐️ 추가
-            setSelectedIds // ⭐️ 추가
+            selectedIds,
+            setSelectedIds
         }}>
             {children}
         </CartContext.Provider>
