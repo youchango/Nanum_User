@@ -12,31 +12,46 @@ const Login = () => {
 
     const handleLogin = async (e) => {
         e.preventDefault();
-
-        if (!loginId || !password) {
-            alert('아이디와 비밀번호를 모두 입력해주세요.');
-            return;
-        }
+        console.log('1. 로그인 시도 시작:', { loginId, password });
 
         setIsLoading(true);
         try {
             const response = await authService.login(loginId, password);
+            console.log('2. 서버 응답 데이터:', response);
 
-            // 명세서 규격 200 OK 확인
-            if (response.status === "200" || response.message === "OK") {
-                const { accessToken, refreshToken, memberInfo } = response.data;
+            // 💡 수정된 조건: status가 "SUCCESS"이거나 "200" 또는 "OK"인 경우 모두 허용
+            const isSuccess =
+                response.status === "SUCCESS" ||
+                response.status === "200" ||
+                response.message === "OK";
 
-                localStorage.setItem('accessToken', accessToken);
-                localStorage.setItem('refreshToken', refreshToken);
-                localStorage.setItem('user', JSON.stringify(memberInfo));
+            if (isSuccess) {
+                console.log('3. 로그인 검증 통과');
 
-                alert(`${memberInfo.memberName}님, 환영합니다!`);
+                // 데이터 구조가 response.data.data 형태인지 확인 필요
+                const authData = response.data;
+
+                // 토큰 저장 (accessToken만 저장하고 refreshToken은 쿠키가 알아서 하게 둡니다)
+                if (authData.accessToken) {
+                    localStorage.setItem('accessToken', authData.accessToken);
+                }
+
+                // 사용자 정보 저장
+                if (authData.memberInfo) {
+                    localStorage.setItem('user', JSON.stringify(authData.memberInfo));
+                }
+
+                // alert(`${authData.memberInfo?.memberName || '회원'}님, 환영합니다!`);
                 navigate('/shop/main');
+            } else {
+                // SUCCESS가 아닌 다른 응답이 왔을 때 (예: ERROR)
+                alert(response.message || '로그인 정보를 다시 확인해주세요.');
             }
         } catch (err) {
-            const errorMsg = err.message || '로그인에 실패했습니다. 아이디 또는 비밀번호를 확인해주세요.';
-            alert(errorMsg);
-            console.error('Login Error:', err);
+            console.error('❌ 4. 에러 발생:', err);
+            // 에러 메시지가 깨진다면 기본 메시지 출력
+            const msg = err.message && !err.message.includes('?') ? err.message : '아이디 또는 비밀번호가 일치하지 않습니다.';
+            alert(msg);
         } finally {
             setIsLoading(false);
         }
@@ -112,7 +127,7 @@ const Login = () => {
                     <p className="text-[13px] text-gray-400">
                         아직 회원이 아니신가요?
                         <button
-                            onClick={() => navigate('/signup')}
+                            onClick={() => navigate('/shop/signup')}
                             className="ml-2 text-[#968064] font-bold hover:underline"
                         >
                             회원가입

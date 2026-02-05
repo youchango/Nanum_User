@@ -29,13 +29,13 @@ const Footer = () => {
 
                         {/* 클릭 시 하얗게 강조되는 메뉴들 */}
                         <div className="flex gap-5 md:gap-8 text-[13px] md:text-[14px] font-medium">
-                            <NavLink to="/terms" className={navLinkStyle}>
+                            <NavLink to="/shop/terms" className={navLinkStyle}>
                                 이용약관
                             </NavLink>
-                            <NavLink to="/privacy" className={navLinkStyle}>
+                            <NavLink to="/shop/privacy" className={navLinkStyle}>
                                 개인정보처리방침
                             </NavLink>
-                            <NavLink to="/location" className={navLinkStyle}>
+                            <NavLink to="/shop/location" className={navLinkStyle}>
                                 찾아오시는 길
                             </NavLink>
                         </div>

@@ -1,7 +1,40 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
 
 const Checkout = () => {
-    const [paymentMethod, setPaymentMethod] = useState('card');
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { cartItems } = useCart();
+
+    // ⭐️ [로직] 넘어온 데이터(선택구매/바로구매)가 있으면 그걸 쓰고, 없으면 장바구니 전체 사용
+    const orderItems = location.state?.orderItems || cartItems;
+
+    const [paymentMethod, setPaymentMethod] = useState('신용카드');
+
+    // [계산] 주문 금액
+    const subtotal = orderItems.reduce((acc, item) => acc + (Number(item.price) * item.quantity), 0);
+
+    // [계산] 할인 금액 (나중에 쿠폰이나 적립금 선택 시 상태값으로 관리 가능)
+    // 일단은 0원으로 두거나, 테스트를 위해 임의의 값을 넣어보세요.
+    const [discountPrice, setDiscountPrice] = useState(0);
+
+    // [계산] 배송비 환경설정에서 가져오기
+    const shippingPrice = subtotal >= 50000 || subtotal === 0 ? 0 : 3000;
+
+    // [계산] 최종 결제 금액 (주문금액 + 배송비 - 할인금액)
+    // 단, 합계가 0원보다 작아지지 않도록 처리합니다.
+    const totalPrice = Math.max(0, subtotal + shippingPrice - discountPrice);
+
+    const handlePayment = () => {
+        if (orderItems.length === 0) {
+            alert('결제할 상품이 없습니다.');
+            return;
+        }
+        alert(`${totalPrice.toLocaleString()}원 결제가 완료되었습니다!`);
+        // 결제 성공 시 로직 (예: 장바구니 비우기 등)
+        navigate('/shop/main');
+    };
 
     return (
         <div className="w-full bg-[#fcfcfc] pb-20">
@@ -18,20 +51,30 @@ const Checkout = () => {
                 {/* 왼쪽: 배송 및 주문 정보 입력 */}
                 <div className="flex-[1.5] flex flex-col gap-10">
 
-                    {/* 주문 상품 요약 (모바일 대응) */}
+                    {/* ⭐️ 동적 주문 상품 요약 */}
                     <section className="bg-white p-6 md:p-8 border border-gray-100 shadow-sm">
-                        <h3 className="text-lg font-bold text-[#333] mb-6 border-b pb-4">주문 상품 정보</h3>
-                        <div className="flex items-center gap-4">
-                            <div className="w-20 h-20 bg-[#f9f9f9] flex-shrink-0 border border-gray-100 flex items-center justify-center text-[10px] text-gray-300">IMAGE</div>
-                            <div className="flex-grow">
-                                <h4 className="text-[15px] font-medium text-[#333]">Nanum 쌀 (10kg)</h4>
-                                <p className="text-[13px] text-gray-400 mt-1">수량: 1개 / [옵션: 기본]</p>
-                                <p className="text-[14px] font-bold text-[#333] mt-1 text-[#968064]">45,000원</p>
-                            </div>
+                        <h3 className="text-lg font-bold text-[#333] mb-6 border-b pb-4">주문 상품 정보 ({orderItems.length})</h3>
+                        <div className="flex flex-col gap-6">
+                            {orderItems.map((item) => (
+                                <div key={item.id} className="flex items-center gap-4 border-b border-gray-50 pb-4 last:border-0 last:pb-0">
+                                    <div className="w-20 h-24 bg-[#f9f9f9] flex-shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden">
+                                        <img
+                                            src={item.image || item.img || '/images/no-image.jpg'}
+                                            alt={item.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div className="flex-grow">
+                                        <h4 className="text-[15px] font-medium text-[#333]">{item.name}</h4>
+                                        <p className="text-[13px] text-gray-400 mt-1">수량: {item.quantity}개</p>
+                                        <p className="text-[14px] font-bold text-[#968064] mt-1">{(item.price * item.quantity).toLocaleString()}원</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </section>
 
-                    {/* 배송지 정보 */}
+                    {/* 배송지 정보 (기존과 동일) */}
                     <section className="bg-white p-6 md:p-8 border border-gray-100 shadow-sm">
                         <h3 className="text-lg font-bold text-[#333] mb-6 border-b pb-4">배송지 정보</h3>
                         <div className="flex flex-col gap-4">
@@ -71,6 +114,7 @@ const Checkout = () => {
                             {['신용카드', '가상계좌', '무통장입금', '카카오페이'].map((method) => (
                                 <button
                                     key={method}
+                                    type="button"
                                     onClick={() => setPaymentMethod(method)}
                                     className={`py-3 text-xs font-medium border transition-all ${paymentMethod === method ? 'border-[#333] bg-[#333] text-white' : 'border-gray-200 text-[#888] hover:border-gray-400'}`}
                                 >
@@ -88,19 +132,28 @@ const Checkout = () => {
                         <div className="flex flex-col gap-4 text-sm text-[#666]">
                             <div className="flex justify-between">
                                 <span>주문 금액</span>
-                                <span className="text-[#333] font-medium">45,000원</span>
+                                <span className="text-[#333] font-medium">{subtotal.toLocaleString()}원</span>
                             </div>
+
+                            {/* ⭐️ 배송비가 0원보다 클 때만 표시, 0원이면 '무료'라고 표시하거나 아예 숨김 */}
                             <div className="flex justify-between">
                                 <span>배송비</span>
-                                <span className="text-[#333] font-medium">+ 3,000원</span>
+                                <span className="text-[#333] font-medium">
+                                  {shippingPrice > 0 ? `+ ${shippingPrice.toLocaleString()}원` : '무료'}
+                                </span>
                             </div>
+
+                            {/* ⭐️ 할인 금액이 0원보다 클 때만 라인 자체가 노출되도록 설정 */}
+                            {discountPrice > 0 && (
                             <div className="flex justify-between">
                                 <span>할인 금액</span>
-                                <span className="text-[#E23600] font-medium">- 0원</span>
+                                <span className="text-[#E23600] font-medium">- {discountPrice.toLocaleString()}원</span>
                             </div>
+                            )}
+
                             <div className="flex justify-between items-end pt-6 border-t border-gray-100 mt-2 text-[#333]">
                                 <span className="font-bold text-base">총 결제 금액</span>
-                                <span className="text-2xl font-extrabold text-[#968064]">48,000원</span>
+                                <span className="text-2xl font-extrabold text-[#968064]">{totalPrice.toLocaleString()}원</span>
                             </div>
                         </div>
 
@@ -111,8 +164,11 @@ const Checkout = () => {
                                     구매조건 확인 및 결제진행에 동의하며, 개인정보 수집 및 이용에 동의합니다. (필수)
                                 </span>
                             </label>
-                            <button className="w-full py-5 bg-[#333] text-white font-bold text-base hover:bg-black transition-all active:scale-[0.98]">
-                                48,000원 결제하기
+                            <button
+                                onClick={handlePayment}
+                                className="w-full py-5 bg-[#333] text-white font-bold text-base hover:bg-black transition-all active:scale-[0.98]"
+                            >
+                                {totalPrice.toLocaleString()}원 결제하기
                             </button>
                         </div>
                     </div>
