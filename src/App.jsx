@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
+import Main from './pages/Main'; // ⭐️ 이미 분리된 Main 컴포넌트
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ProductList from './pages/ProductList';
@@ -21,12 +22,6 @@ import Wishlist from "./pages/Wishlist.jsx";
 import OrderList from "./pages/OrderList.jsx";
 import OrderDetail from "./pages/OrderDetail.jsx";
 
-const MainPage = () => (
-    <div className="h-screen flex items-center justify-center bg-[#ece0d1]">
-        <h2 className="text-4xl font-bold">나눔 메인 화면</h2>
-    </div>
-);
-
 // ⭐️ 실제 레이아웃을 담당하는 컴포넌트
 const LayoutContent = ({ children }) => {
     const location = useLocation();
@@ -40,7 +35,8 @@ const LayoutContent = ({ children }) => {
             <Header />
 
             {/* ⭐️ 메인이면 여백 0 (pt-0), 일반 페이지면 헤더 높이만큼 띄움 */}
-            <main className={`flex-grow ${isMainPage ? "pt-0" : "pt-[60px] md:pt-[80px]"}`}>
+            {/* flex-1을 주어 컨텐츠가 적어도 Footer가 항상 하단에 위치하게 합니다. */}
+            <main className={`flex-1 ${isMainPage ? "pt-0" : "pt-[60px] md:pt-[76px]"}`}>
                 {children}
             </main>
 
@@ -62,7 +58,8 @@ function App() {
 
                         {/* 2. 쇼핑 관련 모든 라우트 그룹 */}
                         <Route path="/shop">
-                            <Route path="main" element={<MainPage />} />
+                            {/* ⭐️ MainPage 대신 위에서 import한 Main 컴포넌트를 사용합니다. */}
+                            <Route path="main" element={<Main />} />
                             <Route path="products" element={<ProductList />} />
                             <Route path="product/:id" element={<ProductDetail />} />
                             <Route path="login" element={<Login />} />
@@ -72,11 +69,13 @@ function App() {
                             <Route path="notice" element={<NoticeList />} />
                             <Route path="notice/:id" element={<NoticeDetail />} />
 
+                            {/* --- 로그인(PrivateRoute)이 필요한 페이지들 --- */}
                             <Route path="cart" element={<PrivateRoute><Cart /></PrivateRoute>} />
                             <Route path="checkout" element={<PrivateRoute><Checkout /></PrivateRoute>} />
                             <Route path="orders" element={<PrivateRoute><OrderList /></PrivateRoute>} />
 
                             <Route path="mypage">
+                                {/* /shop/mypage 로 들어오면 주문조회로 리다이렉트 */}
                                 <Route index element={<Navigate to="orders" replace />} />
                                 <Route path="order/:orderId" element={<PrivateRoute><OrderDetail /></PrivateRoute>} />
                                 <Route path="orders" element={<PrivateRoute><OrderList /></PrivateRoute>} />
@@ -86,6 +85,7 @@ function App() {
                             </Route>
                         </Route>
 
+                        {/* 3. 예외 처리 (404) */}
                         <Route path="*" element={<Navigate to="/shop/main" replace />} />
                     </Routes>
                 </LayoutContent>
