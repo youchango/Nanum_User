@@ -1,100 +1,128 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import cartService from '../api/cartService';
 
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
     const [cartItems, setCartItems] = useState([]);
     const [selectedIds, setSelectedIds] = useState([]);
-    const [isInitialized, setIsInitialized] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    // 1. 로컬스토리지를 읽어오는 공통 함수
-    const loadCart = () => {
-        const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
-        setCartItems(savedCart);
+    const isLoggedIn = () => !!localStorage.getItem('accessToken');
 
-        if (!isInitialized && savedCart.length > 0) {
-            setSelectedIds(savedCart.map(item => item.id));
-            setIsInitialized(true);
+    // 서버에서 장바구니 목록 조회
+    const fetchCart = useCallback(async () => {
+        if (!isLoggedIn()) {
+            setCartItems([]);
+            setSelectedIds([]);
+            return;
         }
-    };
+        try {
+            setLoading(true);
+            const res = await cartService.getCartList();
+            const items = res.data?.data || [];
+            setCartItems(items);
+            setSelectedIds(prev => {
+                if (prev.length === 0 && items.length > 0) {
+                    return items.map(item => item.cartId);
+                }
+                // 기존 선택 유지하되, 삭제된 항목 제거
+                const validIds = items.map(item => item.cartId);
+                return prev.filter(id => validIds.includes(id));
+            });
+        } catch (e) {
+            console.error('장바구니 조회 실패:', e);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-    // 2. 초기 로드 및 실시간 스토리지 감지
+    // 로그인 상태 변경 시 장바구니 로드
     useEffect(() => {
-        loadCart();
-        const handleStorageChange = () => loadCart();
+        fetchCart();
+        const handleAuthChange = () => fetchCart();
+        window.addEventListener('authChange', handleAuthChange);
+        return () => window.removeEventListener('authChange', handleAuthChange);
+    }, [fetchCart]);
 
-        window.addEventListener('storage', handleStorageChange);
-        window.addEventListener('cartUpdate', handleStorageChange);
-
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('cartUpdate', handleStorageChange);
-        };
-    }, [isInitialized]);
-
-    // 3. 상태 업데이트 및 스토리지 저장 통합 함수
-    const saveCart = (newItems) => {
-        const newItemIds = newItems.map(item => item.id);
-        setSelectedIds(prev => prev.filter(id => newItemIds.includes(id)));
-
-        setCartItems(newItems);
-        localStorage.setItem('cart', JSON.stringify(newItems));
-        window.dispatchEvent(new Event('cartUpdate'));
-    };
-
-    // [로직] 장바구니 추가
-    const addToCart = (product, quantity = 1) => {
-        const user = localStorage.getItem('user');
-
-        // ⭐️ [수정] 로그인 체크 및 알림 추가
-        if (!user) {
+    // 장바구니 추가
+    const addToCart = async (product, quantity = 1) => {
+        if (!isLoggedIn()) {
             alert('로그인이 필요한 서비스입니다. 로그인 페이지로 이동합니다.');
-
-            // 현재 페이지의 경로를 세션 스토리지 등에 임시 저장하거나,
-            // 쿼리 파라미터를 통해 전달할 수 있습니다.
-            // 여기서는 가장 직관적인 알림 후 이동 방식을 사용합니다.
             const currentPath = window.location.pathname;
             window.location.href = `/shop/login?redirect=${currentPath}`;
             return;
         }
 
-        const existingItemIndex = cartItems.findIndex(item => item.id === product.id);
-        let newCart;
-
-        if (existingItemIndex > -1) {
-            newCart = [...cartItems];
-            newCart[existingItemIndex].quantity += quantity;
-        } else {
-            newCart = [...cartItems, {
-                id: product.id,
-                name: product.name,
-                price: typeof product.price === 'string' ? parseInt(product.price.replace(/,/g, '')) : product.price,
-                image: product.image || product.img,
-                quantity: quantity
-            }];
-            setSelectedIds(prev => [...prev, product.id]);
-        }
-
-        saveCart(newCart);
-
-        if (window.confirm('장바구니에 담겼습니다. 장바구니로 이동하시겠습니까?')) {
-            window.location.href = '/shop/cart';
+        try {
+            await cartService.addToCart(product.id, quantity, product.optionId || null, false);
+            await fetchCart();
+            if (window.confirm('장바구니에 담겼습니다. 장바구니로 이동하시겠습니까?')) {
+                window.location.href = '/shop/cart';
+            }
+        } catch (e) {
+            if (e.response?.status === 409) {
+                // 이미 장바구니에 있는 상품 → 수량 합산 여부 확인
+                if (window.confirm('이미 장바구니에 담긴 상품입니다. 수량을 추가하시겠습니까?')) {
+                    try {
+                        await cartService.addToCart(product.id, quantity, product.optionId || null, true);
+                        await fetchCart();
+                        if (window.confirm('수량이 추가되었습니다. 장바구니로 이동하시겠습니까?')) {
+                            window.location.href = '/shop/cart';
+                        }
+                    } catch (retryErr) {
+                        alert('장바구니 추가에 실패했습니다.');
+                        console.error(retryErr);
+                    }
+                }
+            } else {
+                alert('장바구니 추가에 실패했습니다.');
+                console.error(e);
+            }
         }
     };
 
-    // [로직] 수량 조절
-    const updateQuantity = (id, delta) => {
-        const newCart = cartItems.map(item =>
-            item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item
+    // 수량 변경
+    const updateQuantity = async (cartId, delta) => {
+        const item = cartItems.find(i => i.cartId === cartId);
+        if (!item) return;
+
+        const newQty = Math.max(1, item.quantity + delta);
+        if (newQty === item.quantity) return;
+
+        // 낙관적 업데이트
+        setCartItems(prev =>
+            prev.map(i => i.cartId === cartId ? { ...i, quantity: newQty, totalPrice: i.unitPrice * newQty } : i)
         );
-        saveCart(newCart);
+
+        try {
+            await cartService.updateQuantity(cartId, newQty);
+        } catch (e) {
+            console.error('수량 변경 실패:', e);
+            await fetchCart(); // 실패 시 서버 데이터로 복원
+        }
     };
 
-    // [로직] 상품 삭제
-    const removeItem = (id) => {
-        if (window.confirm('장바구니에서 삭제하시겠습니까?')) {
-            const newCart = cartItems.filter(item => item.id !== id);
-            saveCart(newCart);
+    // 단건 삭제
+    const removeItem = async (cartId) => {
+        try {
+            await cartService.deleteItem(cartId);
+            await fetchCart();
+        } catch (e) {
+            alert('삭제에 실패했습니다.');
+            console.error(e);
+        }
+    };
+
+    // 다건 삭제
+    const removeItems = async (cartIds) => {
+        if (cartIds.length === 0) return;
+        try {
+            await cartService.deleteItems(cartIds);
+            await fetchCart();
+        } catch (e) {
+            alert('삭제에 실패했습니다.');
+            console.error(e);
         }
     };
 
@@ -104,11 +132,14 @@ export const CartProvider = ({ children }) => {
         <CartContext.Provider value={{
             cartItems,
             cartCount,
+            loading,
             addToCart,
             updateQuantity,
             removeItem,
+            removeItems,
             selectedIds,
-            setSelectedIds
+            setSelectedIds,
+            fetchCart,
         }}>
             {children}
         </CartContext.Provider>

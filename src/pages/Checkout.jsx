@@ -5,7 +5,7 @@ import { useCart } from '../context/CartContext';
 const Checkout = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { cartItems, saveCart } = useCart();
+    const { cartItems, removeItems, fetchCart } = useCart();
 
     const [orderItems, setOrderItems] = useState([]);
 
@@ -29,7 +29,7 @@ const Checkout = () => {
     const shippingPrice = subtotal >= 50000 || subtotal === 0 ? 0 : 3000;
     const totalPrice = Math.max(0, subtotal + shippingPrice - discountPrice);
 
-    const handlePayment = () => {
+    const handlePayment = async () => {
         if (orderItems.length === 0) {
             alert('결제할 상품이 없습니다.');
             return;
@@ -37,13 +37,12 @@ const Checkout = () => {
 
         if (window.confirm(`${totalPrice.toLocaleString()}원을 결제하시겠습니까?`)) {
             alert('결제가 완료되었습니다!');
-            const purchasedIds = orderItems.map(item => item.id);
-            const remainingCart = cartItems.filter(item => !purchasedIds.includes(item.id));
-
-            if (saveCart) {
-                saveCart(remainingCart);
-            } else {
-                localStorage.setItem('cart', JSON.stringify(remainingCart));
+            // 장바구니에서 주문한 상품 삭제 (cartId가 있는 경우만)
+            const cartIdsToRemove = orderItems
+                .map(item => item.cartId)
+                .filter(Boolean);
+            if (cartIdsToRemove.length > 0) {
+                await removeItems(cartIdsToRemove);
             }
             navigate('/shop/mypage/orders');
         }
