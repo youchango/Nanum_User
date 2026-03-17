@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { categoryService } from '../api/categoryService'; // 서비스 임포트
+import { categoryService } from '../api/categoryService';
+import productService from '../api/productService';
 
 const Main = () => {
     const navigate = useNavigate();
@@ -25,16 +26,7 @@ const Main = () => {
         return iconMap[name] || "✨"; // 매칭되는 게 없으면 반짝이 아이콘
     };
 
-    const featuredProducts = [
-        { id: 1, name: "Nanum 쌀 (백미) 10kg", price: 36000, img: "/images/product1.jpg", tag: "Best" },
-        { id: 2, name: "유기농 잡곡 세트", price: 24500, img: "/images/product2.jpg", tag: "New" },
-        { id: 3, name: "내추럴 린넨 에이프런", price: 28800, img: "/images/product3.jpg", tag: "Best" },
-        { id: 4, name: "수공예 도자기 식기", price: 42000, img: "/images/product4.jpg", tag: "" },
-        { id: 5, name: "친환경 대나무 칫솔 세트", price: 12000, img: "/images/product5.jpg", tag: "Sale" },
-        { id: 6, name: "무표백 순면 타월", price: 18500, img: "/images/product6.jpg", tag: "" },
-        { id: 7, name: "프리미엄 전통 장 세트", price: 55000, img: "/images/product7.jpg", tag: "New" },
-        { id: 8, name: "원목 핸드메이드 도마", price: 48000, img: "/images/product8.jpg", tag: "" }
-    ];
+    const [featuredProducts, setFeaturedProducts] = useState([]);
 
     const [currentBanner, setCurrentBanner] = useState(0);
     const timerRef = useRef(null);
@@ -47,12 +39,32 @@ const Main = () => {
         const fetchCategories = async () => {
             try {
                 const data = await categoryService.getCategoryTree();
-                setCategories(data); // 대분류(depth 1) 목록이 저장됨
+                setCategories(data);
             } catch (error) {
                 console.error("메인 카테고리 로드 실패");
             }
         };
         fetchCategories();
+    }, []);
+
+    // 메인 상품 로드
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const res = await productService.getMainProducts({ recordSize: 8 });
+                const data = res.data?.data || [];
+                setFeaturedProducts(data.map(p => ({
+                    id: p.productId,
+                    name: p.name,
+                    price: p.price,
+                    img: p.images?.find(i => i.type === 'MAIN')?.imageUrl || '/images/no-image.jpg',
+                    categoryName: p.categoryName,
+                })));
+            } catch (error) {
+                console.error("메인 상품 로드 실패");
+            }
+        };
+        fetchProducts();
     }, []);
 
     const startTimer = useCallback(() => {
@@ -178,13 +190,11 @@ const Main = () => {
                             <Link key={product.id} to={`/shop/product/${product.id}`} className="group">
                                 <div className="aspect-[3/4] bg-[#f9f9f9] overflow-hidden mb-4 relative">
                                     <img src={product.img || '/images/no-image.jpg'} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                                    {product.tag && (
-                                        <span className="absolute top-3 left-3 bg-[#333] text-white text-[9px] md:text-[10px] px-2 py-0.5 font-bold uppercase tracking-widest">{product.tag}</span>
-                                    )}
                                 </div>
                                 <div className="text-center md:text-left">
+                                    <p className="text-[10px] text-[#968064] font-bold uppercase mb-1">{product.categoryName}</p>
                                     <h3 className="text-[14px] md:text-[15px] font-medium text-[#333] mb-1 line-clamp-1 group-hover:text-[#968064] transition-colors">{product.name}</h3>
-                                    <p className="text-[14px] md:text-[16px] font-bold text-[#333]">{product.price.toLocaleString()}원</p>
+                                    <p className="text-[14px] md:text-[16px] font-bold text-[#333]">{product.price?.toLocaleString()}원</p>
                                 </div>
                             </Link>
                         ))}
