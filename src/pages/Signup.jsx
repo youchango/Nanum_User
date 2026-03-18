@@ -12,6 +12,8 @@ const Signup = () => {
 
 
     // [상태 관리] 명세서 규격 반영
+    const [memberType, setMemberType] = useState(null); // null=미선택, 'U'=일반, 'B'=기업
+
     const [formData, setFormData] = useState({
         memberId: '',
         password: '',
@@ -22,7 +24,12 @@ const Signup = () => {
         zipcode: '',
         address: '',
         addressDetail: '',
-        memberType: 'U' // 일반 사용자 고정
+        // 기업회원 전용
+        companyName: '',
+        ceoName: '',
+        businessNumber: '',
+        businessType: '',
+        businessItem: '',
     });
 
     const [idStatus, setIdStatus] = useState(null); // null, 'success', 'error'
@@ -96,7 +103,7 @@ const Signup = () => {
             setIsLoading(true); // 로딩 상태 활성화
 
             // 2. API 호출
-            const response = await authService.checkId(formData.memberId, formData.memberType);
+            const response = await authService.checkId(formData.memberId, memberType);
 
             // 3. 응답 처리 (data: true -> 중복, data: false -> 사용 가능)
             if (response.data === true) {
@@ -160,14 +167,17 @@ const Signup = () => {
 
         try {
             // 2. 백엔드 전송 데이터 구성
+            // 기업회원 추가 검증
+            if (memberType === 'B') {
+                if (!formData.companyName.trim()) { alert('상호명을 입력해주세요.'); setIsLoading(false); return; }
+                if (!formData.ceoName.trim()) { alert('대표자명을 입력해주세요.'); setIsLoading(false); return; }
+                if (!formData.businessNumber.trim()) { alert('사업자등록번호를 입력해주세요.'); setIsLoading(false); return; }
+            }
+
             const submitData = {
                 ...formData,
-                // 하이픈 제거가 필요하다면: mobilePhone: formData.mobilePhone.replace(/-/g, ''),
-                memberType: "U",
-                businessNumber: "",
-                companyName: "",
-                ceoName: "",
-                phone: ""
+                memberType,
+                phone: "",
             };
 
             // 3. API 호출
@@ -175,7 +185,7 @@ const Signup = () => {
 
             // 4. 성공 시 처리 (백엔드 응답 규격 "200" 또는 "SUCCESS" 확인)
             if (response.status === "200" || response.message === "OK" || response.status === "SUCCESS") {
-                alert(`🎉 ${formData.memberName}님, 가입을 축하드립니다!\n로그인 페이지로 이동합니다.`);
+                alert(`${formData.memberName}님, 회원가입이 완료되었습니다.\n로그인 페이지로 이동합니다.`);
 
                 // 로그인 페이지로 이동 시 아이디를 들고 갈 수도 있습니다 (선택 사항)
                 navigate('/shop/login', { state: { savedId: formData.memberId } });
@@ -200,15 +210,83 @@ const Signup = () => {
         }
     };
 
+    // 미선택 상태 → 유형 선택 화면
+    if (!memberType) {
+        return (
+            <div className="min-h-screen bg-[#fcfcfc] px-6 py-20 font-sans text-[#343434]">
+                <div className="max-w-[500px] mx-auto bg-white p-8 md:p-12 border border-gray-100 shadow-sm">
+                    <div className="text-center mb-12">
+                        <h2 className="text-[26px] font-bold tracking-tight mb-3">회원가입</h2>
+                        <p className="text-[14px] text-gray-400 font-light">가입 유형을 선택해주세요.</p>
+                    </div>
+                    <div className="flex flex-col gap-4">
+                        <button onClick={() => setMemberType('U')}
+                                className="w-full py-8 border border-gray-200 rounded-sm hover:border-[#333] hover:bg-[#fafafa] transition-all group">
+                            <p className="text-[18px] font-bold text-[#333] group-hover:text-[#968064] mb-2">일반 회원</p>
+                            <p className="text-[13px] text-gray-400 font-light">개인 고객으로 가입합니다.</p>
+                        </button>
+                        <button onClick={() => setMemberType('B')}
+                                className="w-full py-8 border border-gray-200 rounded-sm hover:border-[#333] hover:bg-[#fafafa] transition-all group">
+                            <p className="text-[18px] font-bold text-[#333] group-hover:text-[#968064] mb-2">기업 회원</p>
+                            <p className="text-[13px] text-gray-400 font-light">사업자 정보를 등록하고 기업 전용 혜택을 받습니다.</p>
+                        </button>
+                    </div>
+                    <div className="mt-8 text-center">
+                        <button onClick={() => navigate('/shop/login')} className="text-[13px] text-gray-400 underline hover:text-[#333]">이미 계정이 있으신가요?</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-[#fcfcfc] px-6 py-20 font-sans text-[#343434]">
             <div className="max-w-[500px] mx-auto bg-white p-8 md:p-12 border border-gray-100 shadow-sm">
                 <div className="text-center mb-12">
-                    <h2 className="text-[26px] font-bold tracking-tight mb-3">회원가입</h2>
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                        <button onClick={() => setMemberType(null)} className="text-gray-400 hover:text-[#333] text-[14px]">&larr;</button>
+                        <h2 className="text-[26px] font-bold tracking-tight">
+                            {memberType === 'B' ? '기업 회원가입' : '회원가입'}
+                        </h2>
+                    </div>
                     <p className="text-[14px] text-gray-400 font-light">나눔의 새로운 가족이 되어주세요.</p>
                 </div>
 
                 <form className="flex flex-col gap-6" onSubmit={handleSignup}>
+                    {/* 기업회원 전용 - 사업자 정보 */}
+                    {memberType === 'B' && (
+                        <div className="flex flex-col gap-4 bg-[#fafafa] p-5 rounded-sm border border-gray-100 mb-2">
+                            <h3 className="text-[13px] font-bold text-[#968064] uppercase tracking-widest">사업자 정보</h3>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[12px] font-bold text-[#666] ml-1">상호명 <span className="text-[#968064]">*</span></label>
+                                <input name="companyName" type="text" value={formData.companyName} onChange={handleChange}
+                                       className="w-full border border-gray-200 px-4 py-3.5 text-sm focus:border-[#333] outline-none bg-white" placeholder="상호명" />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[12px] font-bold text-[#666] ml-1">대표자명 <span className="text-[#968064]">*</span></label>
+                                <input name="ceoName" type="text" value={formData.ceoName} onChange={handleChange}
+                                       className="w-full border border-gray-200 px-4 py-3.5 text-sm focus:border-[#333] outline-none bg-white" placeholder="대표자명" />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[12px] font-bold text-[#666] ml-1">사업자등록번호 <span className="text-[#968064]">*</span></label>
+                                <input name="businessNumber" type="text" value={formData.businessNumber} onChange={handleChange}
+                                       className="w-full border border-gray-200 px-4 py-3.5 text-sm focus:border-[#333] outline-none bg-white" placeholder="000-00-00000" maxLength={12} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[12px] font-bold text-[#999] ml-1">업태</label>
+                                    <input name="businessType" type="text" value={formData.businessType} onChange={handleChange}
+                                           className="w-full border border-gray-200 px-4 py-3.5 text-sm focus:border-[#333] outline-none bg-white" placeholder="업태" />
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[12px] font-bold text-[#999] ml-1">종목</label>
+                                    <input name="businessItem" type="text" value={formData.businessItem} onChange={handleChange}
+                                           className="w-full border border-gray-200 px-4 py-3.5 text-sm focus:border-[#333] outline-none bg-white" placeholder="종목" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* 아이디 */}
                     <div className="flex flex-col gap-2">
                         <label className="text-[12px] font-bold text-[#666] ml-1">아이디 <span className="text-[#968064]">*</span></label>

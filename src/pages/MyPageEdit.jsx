@@ -1,30 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import usePostcode from "../hooks/usePostcode.js";
+import memberService from "../api/memberService.js";
+import MyPageLayout from "../components/MyPageLayout.jsx";
 
 const MyPageEdit = () => {
     const navigate = useNavigate();
     const { openPostcode } = usePostcode();
 
-    // 1. 초기 데이터 (마케팅 동의 여부 추가)
-    const mockUser = {
-        memberId: 'nanum_user77',
-        memberName: '김나눔',
-        mobilePhone: '010-1234-5678',
-        email: 'hello@nanum.com',
-        zipcode: '12345',
-        address: '서울시 강남구 테헤란로 123',
-        addressDetail: '나눔빌딩 7층',
-        marketingAgreed: true // 추가된 필드
-    };
-
+    const [loading, setLoading] = useState(true);
     const [formData, setFormData] = useState({
-        ...mockUser,
+        memberId: '',
+        memberName: '',
+        mobilePhone: '',
+        email: '',
+        zipcode: '',
+        address: '',
+        addressDetail: '',
+        marketingAgreed: false,
+        currentPassword: '',
         password: '',
         confirmPassword: ''
     });
 
     const [isPwMatch, setIsPwMatch] = useState(null);
+
+    // Fetch profile on mount
+    useEffect(() => {
+        const loadProfile = async () => {
+            try {
+                const res = await memberService.getProfile();
+                const profile = res.data?.data || res.data;
+                setFormData(prev => ({
+                    ...prev,
+                    memberId: profile.memberId || '',
+                    memberName: profile.memberName || '',
+                    mobilePhone: profile.mobilePhone || '',
+                    email: profile.email || '',
+                    zipcode: profile.zipcode || '',
+                    address: profile.address || '',
+                    addressDetail: profile.addressDetail || '',
+                    marketingAgreed: profile.smsYn === 'Y' || profile.emailYn === 'Y',
+                    memberType: profile.memberType || 'U',
+                    companyName: profile.companyName || '',
+                    ceoName: profile.ceoName || '',
+                    businessNumber: profile.businessNumber || '',
+                    businessType: profile.businessType || '',
+                    businessItem: profile.businessItem || '',
+                }));
+            } catch (e) {
+                const msg = e.response?.data?.message || '프로필 정보를 불러오는데 실패했습니다.';
+                alert(msg);
+                console.error('프로필 로드 실패:', e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadProfile();
+    }, []);
 
     useEffect(() => {
         if (formData.confirmPassword) {
@@ -54,16 +87,55 @@ const MyPageEdit = () => {
         });
     };
 
-    const handleSave = (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
-        console.log("수정 요청 데이터:", formData);
-        alert("정보 수정이 완료되었습니다!");
-        navigate('/shop/mypage');
+
+        // Password validation
+        if (formData.password) {
+            if (!formData.currentPassword) {
+                alert('비밀번호 변경 시 현재 비밀번호를 입력해주세요.');
+                return;
+            }
+            if (formData.password !== formData.confirmPassword) {
+                alert('새 비밀번호가 일치하지 않습니다.');
+                return;
+            }
+        }
+
+        try {
+            await memberService.updateProfile({
+                memberName: formData.memberName,
+                mobilePhone: formData.mobilePhone,
+                email: formData.email,
+                zipcode: formData.zipcode,
+                address: formData.address,
+                addressDetail: formData.addressDetail,
+                currentPassword: formData.currentPassword || null,
+                password: formData.password || null,
+                smsYn: formData.marketingAgreed ? "Y" : "N",
+                emailYn: formData.marketingAgreed ? "Y" : "N",
+            });
+            alert("정보가 수정되었습니다.");
+            // 비밀번호 필드 초기화
+            setFormData(prev => ({ ...prev, currentPassword: '', password: '', confirmPassword: '' }));
+        } catch (e) {
+            const msg = e.response?.data?.message || '정보 수정에 실패했습니다. 다시 시도해주세요.';
+            alert(msg);
+            console.error('프로필 수정 실패:', e);
+        }
     };
 
+    if (loading) {
+        return (
+            <MyPageLayout>
+                <div className="py-20 text-center text-gray-400 text-sm">로딩 중...</div>
+            </MyPageLayout>
+        );
+    }
+
     return (
-        <div className="min-h-screen bg-[#fcfcfc] py-20 px-6 font-sans text-[#333]">
-            <div className="max-w-[550px] mx-auto bg-white border border-gray-100 p-8 md:p-12 shadow-sm">
+        <MyPageLayout>
+            <div className="bg-white border border-gray-100 p-8 md:p-12 shadow-sm">
 
                 <header className="text-center mb-12">
                     <h2 className="text-[28px] font-bold tracking-tight mb-2 uppercase">Edit Profile</h2>
@@ -86,18 +158,45 @@ const MyPageEdit = () => {
                             <input name="memberName" type="text" value={formData.memberName} onChange={handleChange} className="w-full border border-gray-200 px-4 py-3.5 text-sm focus:border-[#333] outline-none" />
                         </div>
 
-                        {/* ⭐️ 이메일 필드 추가 */}
+                        {/* 이메일 필드 */}
                         <div className="flex flex-col gap-2">
                             <label className="text-[11px] font-bold text-gray-400 uppercase ml-1">Email</label>
                             <input name="email" type="email" value={formData.email} onChange={handleChange} className="w-full border border-gray-200 px-4 py-3.5 text-sm focus:border-[#333] outline-none" placeholder="example@nanum.com" />
                         </div>
                     </div>
 
+                    {/* 기업회원 사업자 정보 (읽기 전용) */}
+                    {formData.memberType === 'B' && (
+                        <div className="flex flex-col gap-4 bg-[#f8f5f2] p-6 rounded-sm border border-[#968064]/20">
+                            <h3 className="text-[13px] font-black text-[#968064] uppercase tracking-widest">사업자 정보</h3>
+                            <div className="grid grid-cols-2 gap-4 text-[13px]">
+                                <div>
+                                    <span className="text-gray-400 block mb-1">상호명</span>
+                                    <span className="font-medium text-[#333]">{formData.companyName || '-'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-400 block mb-1">대표자명</span>
+                                    <span className="font-medium text-[#333]">{formData.ceoName || '-'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-400 block mb-1">사업자등록번호</span>
+                                    <span className="font-medium text-[#333]">{formData.businessNumber || '-'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-400 block mb-1">업태 / 종목</span>
+                                    <span className="font-medium text-[#333]">{formData.businessType || '-'} / {formData.businessItem || '-'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* 비밀번호 변경 섹션 */}
                     <div className="flex flex-col gap-5 bg-[#fafafa] p-6 rounded-sm">
                         <h3 className="text-[13px] font-black text-[#968064] uppercase tracking-widest">비밀번호 변경</h3>
+                        <p className="text-[11px] text-gray-400">비밀번호를 변경하지 않으려면 비워두세요.</p>
                         <div className="flex flex-col gap-3">
-                            <input name="password" type="password" placeholder="새 비밀번호 (변경 시에만 입력)" value={formData.password} onChange={handleChange} className="w-full border border-gray-200 bg-white px-4 py-3.5 text-sm focus:border-[#333] outline-none" />
+                            <input name="currentPassword" type="password" placeholder="현재 비밀번호" value={formData.currentPassword} onChange={handleChange} className="w-full border border-gray-200 bg-white px-4 py-3.5 text-sm focus:border-[#333] outline-none" />
+                            <input name="password" type="password" placeholder="새 비밀번호" value={formData.password} onChange={handleChange} className="w-full border border-gray-200 bg-white px-4 py-3.5 text-sm focus:border-[#333] outline-none" />
                             <input name="confirmPassword" type="password" placeholder="새 비밀번호 확인" value={formData.confirmPassword} onChange={handleChange} className={`w-full border bg-white px-4 py-3.5 text-sm outline-none ${isPwMatch === true ? 'border-green-500' : isPwMatch === false ? 'border-red-400' : 'border-gray-200'}`} />
                             {isPwMatch === false && <p className="text-[11px] text-red-500 ml-1">비밀번호가 일치하지 않습니다.</p>}
                         </div>
@@ -123,7 +222,7 @@ const MyPageEdit = () => {
                         </div>
                     </div>
 
-                    {/* ⭐️ 마케팅 수신 동의 섹션 추가 */}
+                    {/* 마케팅 수신 동의 섹션 */}
                     <div className="flex flex-col gap-4 border-t border-gray-100 pt-6">
                         <h3 className="text-[13px] font-black text-[#968064] uppercase tracking-widest">수신 동의 설정</h3>
                         <label className="flex items-center gap-3 cursor-pointer group">
@@ -146,11 +245,8 @@ const MyPageEdit = () => {
                     </div>
                 </form>
 
-                <div className="mt-12 text-center border-t border-gray-50 pt-8">
-                    <button type="button" onClick={() => navigate('/shop/mypage/withdrawal')} className="text-[12px] text-gray-300 underline hover:text-red-400 transition-colors">회원 탈퇴를 원하시나요?</button>
-                </div>
             </div>
-        </div>
+        </MyPageLayout>
     );
 };
 

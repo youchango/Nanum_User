@@ -27,7 +27,26 @@ const Header = () => {
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
-        setUser(userData ? JSON.parse(userData) : null);
+        const token = localStorage.getItem('accessToken');
+
+        if (userData && token) {
+            // JWT 만료 체크 (토큰의 payload에서 exp 추출)
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.exp * 1000 < Date.now()) {
+                    // 토큰 만료 → 로그아웃 처리
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('user');
+                    setUser(null);
+                    return;
+                }
+            } catch (e) {
+                // 토큰 파싱 실패 → 무시 (API 호출 시 처리됨)
+            }
+            setUser(JSON.parse(userData));
+        } else {
+            setUser(null);
+        }
     }, [location]);
 
     useEffect(() => {
@@ -49,7 +68,7 @@ const Header = () => {
         { title: '나눔 컬렉션', url: '/shop/products', sub: [{ name: '이달의 추천', url: '/shop/products' }, { name: '위시리스트', url: '/shop/mypage/wishlist' }] },
         { title: '전체 상품', url: '/shop/products', sub: [{ name: '전체 보기', url: '/shop/products' }, { name: '신상품', url: '/shop/products' }] },
         { title: '소식과 안내', url: '/shop/notice', sub: [{ name: '공지사항', url: '/shop/notice' }, { name: '브랜드 이야기', url: '/shop/main' }] },
-        { title: '나의 기록', url: '/shop/mypage', sub: [{ name: '주문/배송 조회', url: '/shop/mypage/orders' }, { name: '내 정보 수정', url: '/shop/mypage/edit' }] }
+        { title: '나의 기록', url: '/shop/mypage', sub: [{ name: '주문/배송 조회', url: '/shop/mypage/orders' }, { name: '1:1 문의', url: '/shop/mypage/inquiries' }, { name: '마이페이지', url: '/shop/mypage/edit' }] }
     ];
 
     return (
@@ -73,7 +92,7 @@ const Header = () => {
                 }`}>
                     <div className="max-w-[1290px] mx-auto px-4 relative flex items-center justify-between h-[60px] md:h-[76px] z-[10001]">
 
-                        <Link to="/shop/main" className="outline-none shrink-0">
+                        <Link to="/shop/main" className="outline-none shrink-0 ml-3">
                             <img src="/images/shop/index/header_logo2.png" alt="Nanum 로고" className="h-6 md:h-8 object-contain" />
                         </Link>
 
@@ -133,7 +152,7 @@ const Header = () => {
                 </div>
 
                 {/* ⭐️ PC 메가메뉴 배경 (이미지의 하얀색 가로 바 부분) */}
-                <div className={`hidden md:block absolute top-full left-0 w-full bg-white border-b border-gray-100 shadow-lg -z-10 transition-all duration-300 ${isHovered ? 'h-[140px] opacity-100' : 'h-0 opacity-0 invisible'}`} />
+                <div className={`hidden md:block absolute top-full left-0 w-full bg-white border-b border-gray-100 shadow-lg -z-10 transition-all duration-300 ${isHovered ? 'h-[180px] opacity-100' : 'h-0 opacity-0 invisible'}`} />
             </header>
 
             {/* 모바일 메뉴 레이어 (헤더 외부에 분리 배치) */}

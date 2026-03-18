@@ -99,7 +99,7 @@ const Login = () => {
                             <input type="checkbox" className="accent-[#333] w-4 h-4" />
                             <span className="text-[12px] text-[#888] group-hover:text-[#666]">로그인 유지</span>
                         </label>
-                        <button type="button" className="text-[12px] text-[#888] hover:underline">비밀번호 찾기</button>
+                        <button type="button" onClick={() => navigate('/shop/find-password')} className="text-[12px] text-[#888] hover:underline">비밀번호 찾기</button>
                     </div>
 
                     <button

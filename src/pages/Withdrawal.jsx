@@ -1,29 +1,46 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import memberService from '../api/memberService';
+import MyPageLayout from '../components/MyPageLayout';
 
 const Withdrawal = () => {
     const navigate = useNavigate();
+    const [password, setPassword] = useState('');
     const [confirmText, setConfirmText] = useState('');
     const [isAgreed, setIsAgreed] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleWithdrawal = (e) => {
+    const handleWithdrawal = async (e) => {
         e.preventDefault();
+        if (!password.trim()) {
+            alert('비밀번호를 입력해주세요.');
+            return;
+        }
         if (confirmText !== '탈퇴확인') {
             alert("'탈퇴확인' 문구를 정확히 입력해주세요.");
             return;
         }
+        if (!window.confirm('정말로 탈퇴하시겠습니까? 모든 구매 내역과 포인트가 삭제되며 복구할 수 없습니다.')) {
+            return;
+        }
 
-        if (window.confirm('정말로 탈퇴하시겠습니까? 모든 구매 내역과 포인트가 삭제되며 복구할 수 없습니다.')) {
-            // API 연동 전 UI 로직
+        setIsSubmitting(true);
+        try {
+            await memberService.withdraw(password);
             alert('회원 탈퇴가 완료되었습니다. 그동안 이용해주셔서 감사합니다.');
             localStorage.clear();
             navigate('/shop/main');
+        } catch (e) {
+            const msg = e.response?.data?.message || '탈퇴 처리에 실패했습니다.';
+            alert(msg);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#fcfcfc] py-20 px-6 font-sans text-[#333]">
-            <div className="max-w-[500px] mx-auto bg-white border border-gray-100 p-8 md:p-12 shadow-sm">
+        <MyPageLayout>
+            <div className="bg-white border border-gray-100 p-8 md:p-12 shadow-sm max-w-[500px]">
                 <header className="text-center mb-10">
                     <h2 className="text-[24px] font-bold tracking-tight mb-2 uppercase text-red-500">Member Withdrawal</h2>
                     <p className="text-gray-400 text-sm font-light">회원 탈퇴 전 아래 내용을 반드시 확인해 주세요.</p>
@@ -51,6 +68,18 @@ const Withdrawal = () => {
                     </label>
 
                     <div className="flex flex-col gap-2">
+                        <label className="text-[11px] font-bold text-gray-400 ml-1 uppercase">Password</label>
+                        <input
+                            type="password"
+                            placeholder="현재 비밀번호를 입력해 주세요"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            disabled={!isAgreed}
+                            className="w-full border border-gray-200 px-4 py-3.5 text-sm focus:border-red-500 outline-none transition-all disabled:bg-gray-50"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
                         <label className="text-[11px] font-bold text-gray-400 ml-1 uppercase">Confirmation Text</label>
                         <input
                             type="text"
@@ -72,15 +101,15 @@ const Withdrawal = () => {
                         </button>
                         <button
                             type="submit"
-                            disabled={!isAgreed || confirmText !== '탈퇴확인'}
+                            disabled={!isAgreed || confirmText !== '탈퇴확인' || !password || isSubmitting}
                             className="flex-[2] py-4 bg-red-500 text-white font-bold text-[14px] hover:bg-red-600 transition-all shadow-md disabled:bg-gray-300 disabled:shadow-none"
                         >
-                            탈퇴하기
+                            {isSubmitting ? '처리 중...' : '탈퇴하기'}
                         </button>
                     </div>
                 </form>
             </div>
-        </div>
+        </MyPageLayout>
     );
 };
 

@@ -34,11 +34,12 @@ export const authService = {
                 address: signupData.address || "",
                 addressDetail: signupData.addressDetail || "",
                 email: signupData.email || "",
-                memberType: "U", // 일반 사용자
-                // 명세서에 있는 나머지 필드들도 반드시 포함 (null 보다는 빈 문자열)
-                businessNumber: "",
-                companyName: "",
-                ceoName: "",
+                memberType: signupData.memberType || "U",
+                businessNumber: signupData.businessNumber || "",
+                companyName: signupData.companyName || "",
+                ceoName: signupData.ceoName || "",
+                businessType: signupData.businessType || "",
+                businessItem: signupData.businessItem || "",
                 phone: ""
             });
             return response.data;
