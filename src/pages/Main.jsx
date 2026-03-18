@@ -2,17 +2,23 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { categoryService } from '../api/categoryService';
 import productService from '../api/productService';
+import displayService from '../api/displayService';
+import { useCart } from '../context/CartContext';
+import PopupLayer from '../components/PopupLayer';
 
 const Main = () => {
     const navigate = useNavigate();
+    const { addToCart } = useCart();
     const [searchQuery, setSearchQuery] = useState("");
     const [categories, setCategories] = useState([]); // ⭐️ 서버 카테고리 상태
 
-    const banners = [
+    const defaultBanners = [
         { id: 1, title: "일상에 나눔을 더하다", desc: "Traditional & Modern Lifestyle", bg: "#ece0d1" },
         { id: 2, title: "정갈한 식탁의 시작", desc: "Premium Organic Selection", bg: "#f4f1ee" },
         { id: 3, title: "자연을 닮은 오브제", desc: "Eco-Friendly Living Item", bg: "#e5e7eb" }
     ];
+    const [banners, setBanners] = useState([]);
+    const [bannerLoaded, setBannerLoaded] = useState(false);
 
     // ⭐️ 카테고리별 임시 아이콘 매핑 (나중에 DB에서 icon 정보를 주면 이 로직을 지우고 cat.icon을 쓰면 됩니다)
     const getTempIcon = (name) => {
@@ -47,6 +53,37 @@ const Main = () => {
         fetchCategories();
     }, []);
 
+    // 배너 API 로드
+    useEffect(() => {
+        const fetchBanners = async () => {
+            try {
+                const res = await displayService.getBanners('MAIN_TOP');
+                const data = res.data?.data || [];
+                if (data.length > 0) {
+                    const apiBanners = data
+                        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+                        .map((b) => ({
+                            id: b.id,
+                            imageUrl: b.files?.[0]?.imageUrl || null,
+                            linkUrl: b.linkUrl || null,
+                            title: '',
+                            desc: '',
+                            bg: '#f4f1ee',
+                        }));
+                    setBanners(apiBanners);
+                } else {
+                    setBanners(defaultBanners);
+                }
+            } catch (error) {
+                console.error('배너 로드 실패, 기본 배너 사용');
+                setBanners(defaultBanners);
+            } finally {
+                setBannerLoaded(true);
+            }
+        };
+        fetchBanners();
+    }, []);
+
     // 메인 상품 로드
     useEffect(() => {
         const fetchProducts = async () => {
@@ -57,6 +94,7 @@ const Main = () => {
                     id: p.productId,
                     name: p.name,
                     price: p.price,
+                    suggestedPrice: p.suggestedPrice,
                     img: p.images?.find(i => i.type === 'MAIN')?.imageUrl || '/images/no-image.jpg',
                     categoryName: p.categoryName,
                 })));
@@ -111,6 +149,9 @@ const Main = () => {
     return (
         <div className="w-full select-none pt-[60px] md:pt-[76px] bg-white">
 
+            {/* 팝업 레이어 */}
+            <PopupLayer />
+
             {/* 🔍 검색 영역 */}
             <div className="px-4 py-4 md:py-6 max-w-[1200px] mx-auto">
                 <form onSubmit={handleSearch} className="relative group">
@@ -155,6 +196,9 @@ const Main = () => {
             </div>
 
             {/* 📸 배너 섹션 */}
+            {!bannerLoaded ? (
+                <div className="h-[250px] md:h-[450px] w-full bg-[#f4f1ee] border-y border-gray-50" />
+            ) :
             <section
                 className="relative h-[250px] md:h-[450px] w-full overflow-hidden bg-white cursor-grab active:cursor-grabbing border-y border-gray-50"
                 onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
@@ -162,12 +206,33 @@ const Main = () => {
             >
                 <div className="flex transition-transform duration-700 ease-in-out h-full pointer-events-none" style={{ transform: `translateX(-${currentBanner * 100}%)` }}>
                     {banners.map((banner) => (
-                        <div key={banner.id} className="w-full h-full flex-shrink-0 relative flex flex-col items-center justify-center text-center px-4" style={{ backgroundColor: banner.bg }}>
-                            <div className="relative z-10 pointer-events-auto">
-                                <span className="text-[10px] md:text-[14px] font-bold text-[#968064] tracking-[0.2em] uppercase mb-1 md:mb-2 block">{banner.desc}</span>
-                                <h1 className="text-[20px] md:text-[36px] font-black text-[#333] leading-tight mb-4 md:mb-6">{banner.title}</h1>
-                                <Link to="/shop/products" className="px-5 py-1.5 md:px-8 md:py-2 border border-[#333] text-[#333] text-[11px] md:text-[12px] font-bold hover:bg-[#333] hover:text-white transition-all rounded-sm inline-block">VIEW MORE</Link>
-                            </div>
+                        <div
+                            key={banner.id}
+                            className="w-full h-full flex-shrink-0 relative flex flex-col items-center justify-center text-center px-4"
+                            style={{
+                                backgroundColor: banner.imageUrl ? 'transparent' : banner.bg,
+                                backgroundImage: banner.imageUrl ? `url(${banner.imageUrl})` : 'none',
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                            }}
+                        >
+                            {/* Image banner: show VIEW MORE button only */}
+                            {banner.imageUrl ? (
+                                <div className="relative z-10 pointer-events-auto">
+                                    <Link
+                                        to={banner.linkUrl || '/shop/products'}
+                                        className="px-5 py-1.5 md:px-8 md:py-2 border border-white text-white text-[11px] md:text-[12px] font-bold hover:bg-white hover:text-[#333] transition-all rounded-sm inline-block backdrop-blur-sm bg-black/10"
+                                    >
+                                        VIEW MORE
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="relative z-10 pointer-events-auto">
+                                    <span className="text-[10px] md:text-[14px] font-bold text-[#968064] tracking-[0.2em] uppercase mb-1 md:mb-2 block">{banner.desc}</span>
+                                    <h1 className="text-[20px] md:text-[36px] font-black text-[#333] leading-tight mb-4 md:mb-6">{banner.title}</h1>
+                                    <Link to={banner.linkUrl || '/shop/products'} className="px-5 py-1.5 md:px-8 md:py-2 border border-[#333] text-[#333] text-[11px] md:text-[12px] font-bold hover:bg-[#333] hover:text-white transition-all rounded-sm inline-block">VIEW MORE</Link>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -175,6 +240,7 @@ const Main = () => {
                     <div className="text-[10px] md:text-[11px] font-bold text-[#333] tracking-widest">{currentBanner + 1} / {banners.length}</div>
                 </div>
             </section>
+            }
 
             {/* 추천 상품 섹션 */}
             <section className="py-16 md:py-24 px-6 bg-white">
@@ -186,18 +252,39 @@ const Main = () => {
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10 md:gap-x-6 md:gap-y-16">
-                        {featuredProducts.map((product) => (
-                            <Link key={product.id} to={`/shop/product/${product.id}`} className="group">
-                                <div className="aspect-[3/4] bg-[#f9f9f9] overflow-hidden mb-4 relative">
-                                    <img src={product.img || '/images/no-image.jpg'} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                                </div>
-                                <div className="text-center md:text-left">
-                                    <p className="text-[10px] text-[#968064] font-bold uppercase mb-1">{product.categoryName}</p>
-                                    <h3 className="text-[14px] md:text-[15px] font-medium text-[#333] mb-1 line-clamp-1 group-hover:text-[#968064] transition-colors">{product.name}</h3>
-                                    <p className="text-[14px] md:text-[16px] font-bold text-[#333]">{product.price?.toLocaleString()}원</p>
-                                </div>
-                            </Link>
-                        ))}
+                        {featuredProducts.map((product) => {
+                            const discountRate = product.suggestedPrice && product.suggestedPrice > product.price
+                                ? Math.floor(((product.suggestedPrice - product.price) / product.suggestedPrice) * 100)
+                                : null;
+                            return (
+                                <Link key={product.id} to={`/shop/product/${product.id}`} className="group">
+                                    <div className="aspect-[3/4] bg-[#f9f9f9] overflow-hidden mb-4 relative">
+                                        {discountRate && (
+                                            <div className="absolute top-0 right-0 bg-[#E23600] text-white text-[11px] font-bold px-3 py-1.5 z-10 shadow-sm">{discountRate}% OFF</div>
+                                        )}
+                                        {product.img && product.img !== '/images/no-image.jpg' ? (
+                                            <img src={product.img} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">No Image</div>
+                                        )}
+                                        <button
+                                            className="absolute bottom-0 left-0 w-full bg-[#333]/90 py-4 text-white text-[12px] font-bold translate-y-full group-hover:translate-y-0 transition-transform"
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart({ id: product.id, name: product.name, price: product.price, image: product.img }, 1); }}
+                                        >장바구니 담기</button>
+                                    </div>
+                                    <div className="text-center md:text-left">
+                                        <p className="text-[10px] text-[#968064] font-bold uppercase mb-1">{product.categoryName}</p>
+                                        <h3 className="text-[14px] md:text-[15px] font-medium text-[#333] mb-1 line-clamp-1 group-hover:text-[#968064] transition-colors">{product.name}</h3>
+                                        <div className="flex items-center justify-center md:justify-start gap-2">
+                                            <p className="text-[14px] md:text-[16px] font-bold text-[#333]">{product.price?.toLocaleString()}원</p>
+                                            {product.suggestedPrice > product.price && (
+                                                <p className="text-[12px] text-gray-400 line-through font-light">{product.suggestedPrice?.toLocaleString()}원</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Link>
+                            );
+                        })}
                     </div>
 
                     <div className="mt-20 text-center">

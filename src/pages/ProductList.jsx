@@ -1,26 +1,28 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { categoryService } from '../api/categoryService';
 import productService from '../api/productService';
 
 const ProductList = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { addToCart } = useCart();
 
-    const [allProducts, setAllProducts] = useState([]);
+    const initialCategoryId = searchParams.get('category') ? Number(searchParams.get('category')) : null;
+
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
-    const [activeTab, setActiveTab] = useState('all');
-    const [selectedCategoryId, setSelectedCategoryId] = useState({ main: null, sub: null });
-    const [searchQuery, setSearchQuery] = useState("");
+    const [activeTab, setActiveTab] = useState(initialCategoryId ? 'all' : 'all');
+    const [selectedCategoryId, setSelectedCategoryId] = useState({ main: initialCategoryId, sub: null });
+    const [searchInput, setSearchInput] = useState(searchParams.get('search') || "");
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || "");
 
     const observerRef = useRef();
-    const PAGE_SIZE = 8;
-    const FIRST_PAGE_SIZE = 12;
+    const PAGE_SIZE = 12;
 
     // 카테고리 로드
     useEffect(() => {
@@ -31,46 +33,55 @@ const ProductList = () => {
         fetchCategories();
     }, []);
 
-    // 상품 목록 API 로드
-    useEffect(() => {
-        const fetchProducts = async () => {
-            setLoading(true);
-            try {
-                const params = {};
-                if (searchQuery.trim()) params.keyword = searchQuery;
-                if (selectedCategoryId.sub) {
-                    params.categoryId = selectedCategoryId.sub;
-                } else if (selectedCategoryId.main) {
-                    params.categoryId = selectedCategoryId.main;
-                }
-                const res = await productService.getProducts(params);
-                const data = res.data?.data || [];
-                setAllProducts(data);
-                setProducts(data.slice(0, FIRST_PAGE_SIZE));
-                setHasMore(data.length > FIRST_PAGE_SIZE);
-                setPage(1);
-            } catch (e) {
-                console.error('상품 조회 실패:', e);
-                setAllProducts([]);
-                setProducts([]);
-            } finally {
-                setLoading(false);
+    const FIXED_COUNT = 12;
+
+    // 상품 목록 서버 페이징 조회
+    const fetchProducts = useCallback(async (pageNum, reset = false) => {
+        setLoading(true);
+        try {
+            const isFixedTab = activeTab === 'best' || activeTab === 'new';
+            const params = {
+                page: isFixedTab ? 1 : pageNum,
+                recordSize: isFixedTab ? FIXED_COUNT : PAGE_SIZE,
+            };
+            if (activeTab === 'best') params.sort = 'best';
+            if (searchQuery.trim()) params.keyword = searchQuery.trim();
+            if (selectedCategoryId.sub) {
+                params.categoryId = selectedCategoryId.sub;
+            } else if (selectedCategoryId.main) {
+                params.categoryId = selectedCategoryId.main;
             }
-        };
-        fetchProducts();
+            const res = await productService.getProducts(params);
+            const pageData = res.data?.data || {};
+            const content = pageData.content || [];
+
+            if (reset) {
+                setProducts(content);
+            } else {
+                setProducts(prev => [...prev, ...content]);
+            }
+            setHasMore(isFixedTab ? false : content.length >= PAGE_SIZE);
+        } catch (e) {
+            console.error('상품 조회 실패:', e);
+            if (reset) setProducts([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedCategoryId, searchQuery, activeTab]);
+
+    // 필터 변경 시 초기화
+    useEffect(() => {
+        setPage(1);
+        setHasMore(true);
+        fetchProducts(1, true);
     }, [selectedCategoryId, activeTab, searchQuery]);
 
-    // 무한 스크롤 페이지 추가
+    // 페이지 증가 시 추가 로드
     useEffect(() => {
-        if (page <= 1) return;
-        const start = FIRST_PAGE_SIZE + (page - 2) * PAGE_SIZE;
-        const end = start + PAGE_SIZE;
-        const nextSlice = allProducts.slice(start, end);
-        if (nextSlice.length > 0) {
-            setProducts(prev => [...prev, ...nextSlice]);
+        if (page > 1) {
+            fetchProducts(page, false);
         }
-        if (end >= allProducts.length) setHasMore(false);
-    }, [page, allProducts]);
+    }, [page, fetchProducts]);
 
     const lastElementRef = useCallback((node) => {
         if (loading) return;
@@ -91,7 +102,7 @@ const ProductList = () => {
             const main = item.images.find(img => img.isMain === 'Y') || item.images[0];
             return main.url || main.filePath;
         }
-        return '/images/no-image.jpg';
+        return null;
     };
 
     const handleAddToCart = (e, item) => {
@@ -104,18 +115,18 @@ const ProductList = () => {
             <div className="sticky top-[60px] md:top-[76px] z-[500] bg-white border-b border-gray-100 shadow-sm">
                 <div className="max-w-[1290px] mx-auto px-6 py-4 flex flex-col gap-4 bg-white">
                     {/* 검색창 */}
-                    <div className="relative w-full">
+                    <form className="relative w-full" onSubmit={(e) => { e.preventDefault(); setSearchQuery(searchInput); }}>
                         <input
                             type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="찾으시는 상품명을 입력해주세요."
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            placeholder="찾으시는 상품명을 입력하고 엔터를 누르세요."
                             className="w-full h-11 pl-12 pr-4 bg-gray-50 border border-gray-100 rounded-full text-[14px] outline-none focus:border-[#968064] focus:bg-white transition-all"
                         />
                         <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                    </div>
+                    </form>
 
                     {/* 카테고리 바 */}
                     <div className="flex items-center gap-6 text-[13px] font-bold text-[#bbb] overflow-x-auto no-scrollbar py-1">
@@ -164,7 +175,11 @@ const ProductList = () => {
                                      onClick={() => navigate(`/shop/product/${item.productId}`)}>
                                     <div className="relative aspect-[3/4] bg-[#f9f9f9] mb-4 overflow-hidden shadow-sm">
                                         {discountRate && <div className="absolute top-0 right-0 bg-[#E23600] text-white text-[11px] font-bold px-3 py-1.5 z-10 shadow-sm">{discountRate}% OFF</div>}
-                                        <img src={imgSrc} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                                        {imgSrc ? (
+                                            <img src={imgSrc} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">No Image</div>
+                                        )}
                                         <button className="absolute bottom-0 left-0 w-full bg-[#333]/90 py-4 text-white text-[12px] font-bold translate-y-full group-hover:translate-y-0 transition-transform"
                                                 onClick={(e) => handleAddToCart(e, item)}>장바구니 담기</button>
                                     </div>

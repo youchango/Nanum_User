@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import wishlistService from '../api/wishlistService';
+import MyPageLayout from '../components/MyPageLayout';
 
 const Wishlist = () => {
     const navigate = useNavigate();
@@ -71,22 +72,18 @@ const Wishlist = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-white py-20 px-6 font-sans text-[#333]">
-                <div className="max-w-[1100px] mx-auto">
+            <MyPageLayout>
                     <header className="text-center mb-16">
                         <h2 className="text-[32px] font-bold tracking-tight mb-2 uppercase">Wishlist</h2>
                         <p className="text-gray-400 text-sm font-light">관심 있는 상품을 보관하고 나중에 구매하세요.</p>
                     </header>
                     <div className="py-32 text-center text-gray-400">불러오는 중...</div>
-                </div>
-            </div>
+            </MyPageLayout>
         );
     }
 
     return (
-        <div className="min-h-screen bg-white py-20 px-6 font-sans text-[#333]">
-            <div className="max-w-[1100px] mx-auto">
-
+        <MyPageLayout>
                 <header className="text-center mb-16">
                     <h2 className="text-[32px] font-bold tracking-tight mb-2 uppercase">Wishlist</h2>
                     <p className="text-gray-400 text-sm font-light">관심 있는 상품을 보관하고 나중에 구매하세요.</p>
@@ -200,8 +197,7 @@ const Wishlist = () => {
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
+        </MyPageLayout>
     );
 };
 
