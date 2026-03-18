@@ -40,7 +40,7 @@ const Checkout = () => {
     const [cashInfo, setCashInfo] = useState(null);
     const [taxFormEditing, setTaxFormEditing] = useState(false);
     const [taxForm, setTaxForm] = useState({
-        bizRegNo: '', bizName: '', ceoName: '', bizType: '', bizItem: '', bizAddress: '', email: '', phone: '',
+        bizRegNum: '', bizName: '', bizRepName: '', bizCategory: '', bizDetailCategory: '', bizAddress: '', bizEmail: '', bizMobile: '',
     });
     const [cashForm, setCashForm] = useState({
         purposeType: 'INCOME_DEDUCTION', identifyNumber: '',
@@ -181,7 +181,7 @@ const Checkout = () => {
             const res = await taxBillService.getInfoList();
             const list = res.data?.data || [];
             setSavedTaxInfoList(list);
-            if (taxInfo?.id === id) { setTaxInfo(null); setTaxForm({ bizRegNo: '', bizName: '', ceoName: '', bizType: '', bizItem: '', bizAddress: '', email: '', phone: '' }); }
+            if (taxInfo?.id === id) { setTaxInfo(null); setTaxForm({ bizRegNum: '', bizName: '', bizRepName: '', bizCategory: '', bizDetailCategory: '', bizAddress: '', bizEmail: '', bizMobile: '' }); }
         } catch (e) {
             alert(e.response?.data?.message || '삭제에 실패했습니다.');
         }
@@ -202,9 +202,9 @@ const Checkout = () => {
     const selectTaxInfo = (info) => {
         setTaxInfo(info);
         setTaxForm({
-            bizRegNo: info.bizRegNum || '', bizName: info.bizName || '', ceoName: info.bizRepName || '',
-            bizType: info.bizCategory || '', bizItem: info.bizDetailCategory || '',
-            bizAddress: info.bizAddress || '', email: info.bizEmail || '', phone: info.bizMobile || '',
+            bizRegNum: info.bizRegNum || '', bizName: info.bizName || '', bizRepName: info.bizRepName || '',
+            bizCategory: info.bizCategory || '', bizDetailCategory: info.bizDetailCategory || '',
+            bizAddress: info.bizAddress || '', bizEmail: info.bizEmail || '', bizMobile: info.bizMobile || '',
         });
         setTaxFormEditing(false);
     };
@@ -293,7 +293,7 @@ const Checkout = () => {
 
         // 증빙 서류 유효성 검사
         if (taxBillType === 'TAX_BILL') {
-            if (!taxForm.bizRegNo.trim()) {
+            if (!taxForm.bizRegNum.trim()) {
                 alert('사업자등록번호를 입력해주세요.');
                 return;
             }
@@ -301,11 +301,11 @@ const Checkout = () => {
                 alert('상호명을 입력해주세요.');
                 return;
             }
-            if (!taxForm.ceoName.trim()) {
+            if (!taxForm.bizRepName.trim()) {
                 alert('대표자명을 입력해주세요.');
                 return;
             }
-            if (!taxForm.email.trim()) {
+            if (!taxForm.bizEmail.trim()) {
                 alert('세금계산서 수신 이메일을 입력해주세요.');
                 return;
             }
@@ -745,9 +745,9 @@ const Checkout = () => {
                                             </div>
                                             {taxInfo && (
                                                 <div className="text-[13px] text-gray-600 space-y-1 bg-white p-3 border border-gray-100 rounded-sm">
-                                                    <p>사업자등록번호: {taxForm.bizRegNo}</p>
-                                                    <p>상호: {taxForm.bizName} / 대표: {taxForm.ceoName}</p>
-                                                    {taxForm.email && <p>이메일: {taxForm.email}</p>}
+                                                    <p>사업자등록번호: {taxForm.bizRegNum}</p>
+                                                    <p>상호: {taxForm.bizName} / 대표: {taxForm.bizRepName}</p>
+                                                    {taxForm.bizEmail && <p>이메일: {taxForm.bizEmail}</p>}
                                                 </div>
                                             )}
                                         </div>
