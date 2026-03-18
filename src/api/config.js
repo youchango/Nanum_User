@@ -55,7 +55,7 @@ api.interceptors.response.use(
                 console.error("세션이 만료되었습니다.");
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('user');
-                window.location.href = '/login';
+                window.location.href = '/shop/login';
                 return Promise.reject(refreshError);
             }
         }
