@@ -20,17 +20,6 @@ const Main = () => {
     const [banners, setBanners] = useState([]);
     const [bannerLoaded, setBannerLoaded] = useState(false);
 
-    // ⭐️ 카테고리별 임시 아이콘 매핑 (나중에 DB에서 icon 정보를 주면 이 로직을 지우고 cat.icon을 쓰면 됩니다)
-    const getTempIcon = (name) => {
-        const iconMap = {
-            "쌀": "🌾",
-            "키친": "☕",
-            "의류": "👕",
-            "리빙": "🍯",
-            "욕실": "🧼"
-        };
-        return iconMap[name] || "✨"; // 매칭되는 게 없으면 반짝이 아이콘
-    };
 
     const [featuredProducts, setFeaturedProducts] = useState([]);
 
@@ -173,21 +162,22 @@ const Main = () => {
                 <div className="flex justify-start md:justify-center gap-6 md:gap-12 min-w-max mx-auto max-w-[1200px]">
                     {/* '전체보기'는 고정으로 하나 둠 */}
                     <Link to="/shop/products" className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 md:w-16 md:h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-2xl group-hover:bg-[#968064]/10 transition-colors">🍱</div>
+                        <div className="w-11 h-11 md:w-12 md:h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center group-hover:bg-[#ebe6e0] transition-colors">
+                            <span className="text-[12px] md:text-[13px] font-semibold text-[#555]">All</span>
+                        </div>
                         <span className="text-[12px] md:text-[13px] font-medium text-gray-600 group-hover:text-[#968064]">전체보기</span>
                     </Link>
 
-                    {/* 서버에서 가져온 1depth 카테고리 반복문 */}
                     {categories.map((cat) => (
                         <Link
                             key={cat.id}
                             to={`/shop/products?category=${cat.id}`}
                             className="flex flex-col items-center gap-2 group"
                         >
-                            <div className="w-14 h-14 md:w-16 md:h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-2xl group-hover:bg-[#968064]/10 transition-colors">
-                                {getTempIcon(cat.name)}
+                            <div className="w-11 h-11 md:w-12 md:h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center group-hover:bg-[#ebe6e0] transition-colors">
+                                <span className="text-[15px] md:text-[16px] font-semibold text-[#555]">{cat.name.charAt(0)}</span>
                             </div>
-                            <span className="text-[12px] md:text-[13px] font-medium text-gray-600 group-hover:text-[#968064] whitespace-nowrap">
+                            <span className="text-[12px] md:text-[13px] font-medium text-gray-500 group-hover:text-[#968064] whitespace-nowrap">
                                 {cat.name}
                             </span>
                         </Link>

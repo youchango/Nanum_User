@@ -32,3 +32,9 @@ Thumbs.db
 .cache/
 .parcel-cache/
 .eslintcache
+
+# [배포] Docker / Nginx (로컬 설정)
+vite.config.js
+Dockerfile
+nginx.conf
+.env.production

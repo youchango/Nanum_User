@@ -129,36 +129,42 @@ const ProductList = () => {
                     </form>
 
                     {/* 카테고리 바 */}
-                    <div className="flex items-center gap-6 text-[13px] font-bold text-[#bbb] overflow-x-auto no-scrollbar py-1">
-                        <div className="flex gap-5 border-r pr-5 border-gray-200 shrink-0">
-                            {['all', 'best', 'new'].map(tab => (
-                                <button key={tab} onClick={() => { setActiveTab(tab); setSelectedCategoryId({ main: null, sub: null }); }}
-                                        className={`transition-all uppercase pb-1 whitespace-nowrap ${activeTab === tab && !selectedCategoryId.main ? 'text-[#333] border-b-2 border-[#333]' : 'hover:text-[#333]'}`}>
-                                    {tab === 'all' ? '전체' : tab === 'best' ? '베스트' : '신상품'}
-                                </button>
-                            ))}
+                    <div className="relative text-[13px] font-bold text-[#bbb] py-1">
+                        <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
+                            <div className="flex gap-5 border-r pr-5 border-gray-200 shrink-0">
+                                {['all', 'best', 'new'].map(tab => (
+                                    <button key={tab} onClick={() => { setActiveTab(tab); setSelectedCategoryId({ main: null, sub: null }); }}
+                                            className={`transition-all uppercase pb-1 whitespace-nowrap ${activeTab === tab && !selectedCategoryId.main ? 'text-[#333] border-b-2 border-[#333]' : 'hover:text-[#333]'}`}>
+                                        {tab === 'all' ? '전체' : tab === 'best' ? '베스트' : '신상품'}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-7 shrink-0">
+                                {categories.map((cat) => (
+                                    <div key={cat.id} className="relative group/cat">
+                                        <button onClick={() => { setSelectedCategoryId({ main: cat.id, sub: null }); setActiveTab('all'); }}
+                                                className={`transition-all pb-1 whitespace-nowrap ${selectedCategoryId.main === cat.id ? 'text-[#968064] border-b-2 border-[#968064]' : 'hover:text-[#333]'}`}>{cat.name}</button>
+
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
-                        <div className="flex gap-7 shrink-0">
-                            {categories.map((cat) => (
-                                <div key={cat.id} className="relative group/cat">
-                                    <button onClick={() => { setSelectedCategoryId({ main: cat.id, sub: null }); setActiveTab('all'); }}
-                                            className={`transition-all pb-1 whitespace-nowrap ${selectedCategoryId.main === cat.id ? 'text-[#968064] border-b-2 border-[#968064]' : 'hover:text-[#333]'}`}>{cat.name}</button>
-
-                                    {cat.subs && cat.subs.length > 0 && (
-                                        <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 opacity-0 invisible group-hover/cat:opacity-100 group-hover/cat:visible transition-all duration-300 z-[1000]">
-                                            <ul className="bg-white border border-gray-100 shadow-2xl py-2 min-w-[110px] text-center rounded-sm">
-                                                <li className="px-4 py-2 text-[12px] text-[#888] cursor-pointer hover:text-[#968064]" onClick={() => setSelectedCategoryId({ main: cat.id, sub: null })}>전체보기</li>
-                                                {cat.subs.map(sub => (
-                                                    <li key={sub.id} className={`px-4 py-2 text-[12px] cursor-pointer hover:text-[#968064] ${selectedCategoryId.sub === sub.id ? 'text-[#968064] font-bold' : 'text-[#888]'}`}
-                                                        onClick={() => setSelectedCategoryId({ main: cat.id, sub: sub.id })}>{sub.name}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
+                        {/* 2depth 서브카테고리 필 버튼 */}
+                        {categories.map((cat) => (
+                            cat.subs && cat.subs.length > 0 && selectedCategoryId.main === cat.id && (
+                                <div key={`sub-${cat.id}`} className="flex gap-2 flex-wrap pt-3 mt-2 border-t border-gray-100">
+                                    <button className={`px-3 py-1 text-[12px] rounded-full border transition-colors ${!selectedCategoryId.sub ? 'bg-[#968064] text-white border-[#968064]' : 'text-[#888] border-gray-200 hover:border-[#968064] hover:text-[#968064]'}`}
+                                        onClick={() => setSelectedCategoryId({ main: cat.id, sub: null })}>전체</button>
+                                    {cat.subs.map(sub => (
+                                        <button key={sub.id}
+                                            className={`px-3 py-1 text-[12px] rounded-full border transition-colors ${selectedCategoryId.sub === sub.id ? 'bg-[#968064] text-white border-[#968064]' : 'text-[#888] border-gray-200 hover:border-[#968064] hover:text-[#968064]'}`}
+                                            onClick={() => setSelectedCategoryId({ main: cat.id, sub: sub.id })}>{sub.name}</button>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            )
+                        ))}
                     </div>
                 </div>
             </div>

@@ -1,6 +1,6 @@
 import api from './config';
 
-const SITE_CD = 'NANUM';
+const SITE_CD = import.meta.env.VITE_SITE_CD || 'NANUM';
 
 const contentService = {
     /** 공지사항 목록 조회 */
