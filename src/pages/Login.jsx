@@ -7,8 +7,9 @@ const Login = () => {
     const location = useLocation();
 
     // 상태 관리
-    const [loginId, setLoginId] = useState('');
+    const [loginId, setLoginId] = useState(() => localStorage.getItem('savedLoginId') || '');
     const [password, setPassword] = useState('');
+    const [saveId, setSaveId] = useState(() => !!localStorage.getItem('savedLoginId'));
     const [isLoading, setIsLoading] = useState(false);
 
     // ⭐️ PrivateRoute나 ProductDetail에서 넘겨준 목적지와 상품 데이터를 추출합니다.
@@ -36,6 +37,13 @@ const Login = () => {
 
                 if (authData.accessToken) {
                     localStorage.setItem('accessToken', authData.accessToken);
+                }
+
+                // 아이디 저장
+                if (saveId) {
+                    localStorage.setItem('savedLoginId', loginId);
+                } else {
+                    localStorage.removeItem('savedLoginId');
                 }
 
                 if (authData.memberInfo) {
@@ -96,8 +104,8 @@ const Login = () => {
 
                     <div className="flex justify-between items-center mt-2 mb-4">
                         <label className="flex items-center gap-2 cursor-pointer group">
-                            <input type="checkbox" className="accent-[#333] w-4 h-4" />
-                            <span className="text-[12px] text-[#888] group-hover:text-[#666]">로그인 유지</span>
+                            <input type="checkbox" checked={saveId} onChange={(e) => setSaveId(e.target.checked)} className="accent-[#333] w-4 h-4" />
+                            <span className="text-[12px] text-[#888] group-hover:text-[#666]">아이디 저장</span>
                         </label>
                         <button type="button" onClick={() => navigate('/shop/find-password')} className="text-[12px] text-[#888] hover:underline">비밀번호 찾기</button>
                     </div>

@@ -7,7 +7,7 @@ const FindPassword = () => {
 
     const [memberId, setMemberId] = useState('');
     const [memberName, setMemberName] = useState('');
-    const [mobilePhone, setMobilePhone] = useState('');
+    const [email, setEmail] = useState('');
     const [verifyCode, setVerifyCode] = useState('');
     const [isCodeSent, setIsCodeSent] = useState(false);
     const [isVerified, setIsVerified] = useState(false);
@@ -15,14 +15,6 @@ const FindPassword = () => {
     const [tempPassword, setTempPassword] = useState(null);
     const [countdown, setCountdown] = useState(0);
 
-    const formatPhone = (value) => {
-        const numbers = value.replace(/[^0-9]/g, '').slice(0, 11);
-        if (numbers.length <= 3) return numbers;
-        if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
-        return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7)}`;
-    };
-
-    // 타이머
     useEffect(() => {
         if (countdown <= 0) return;
         const timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
@@ -31,22 +23,18 @@ const FindPassword = () => {
 
     const formatTime = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 
-    // 인증번호 발송
     const handleSendCode = async () => {
         if (!memberId.trim()) { alert('아이디를 입력해주세요.'); return; }
         if (!memberName.trim()) { alert('이름을 입력해주세요.'); return; }
-        if (!mobilePhone || mobilePhone.replace(/-/g, '').length < 10) {
-            alert('휴대전화번호를 정확히 입력해주세요.');
-            return;
-        }
+        if (!email.trim() || !email.includes('@')) { alert('올바른 이메일을 입력해주세요.'); return; }
         try {
-            const res = await memberService.sendCode({ memberId, memberName, mobilePhone, purpose: 'RESET_PASSWORD' });
+            const res = await memberService.sendEmailCode({ memberId, memberName, email, purpose: 'RESET_PASSWORD' });
             const result = res.data;
             if (result.status === 'SUCCESS') {
                 setIsCodeSent(true);
                 setIsVerified(false);
                 setVerifyCode('');
-                setCountdown(180); // 3분
+                setCountdown(180);
                 alert('인증번호가 발송되었습니다.' + (result.data?.devCode ? ` (개발모드: ${result.data.devCode})` : ''));
             } else {
                 alert(result.message);
@@ -56,14 +44,10 @@ const FindPassword = () => {
         }
     };
 
-    // 인증번호 확인
     const handleVerifyCode = async () => {
-        if (!verifyCode || verifyCode.length !== 6) {
-            alert('인증번호 6자리를 입력해주세요.');
-            return;
-        }
+        if (!verifyCode || verifyCode.length !== 6) { alert('인증번호 6자리를 입력해주세요.'); return; }
         try {
-            const res = await memberService.verifyCode({ mobilePhone, purpose: 'RESET_PASSWORD', code: verifyCode });
+            const res = await memberService.verifyEmailCode({ email, purpose: 'RESET_PASSWORD', code: verifyCode });
             const result = res.data;
             if (result.status === 'SUCCESS') {
                 setIsVerified(true);
@@ -76,16 +60,12 @@ const FindPassword = () => {
         }
     };
 
-    // 비밀번호 재발급
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!isVerified) {
-            alert('휴대전화 인증을 먼저 완료해주세요.');
-            return;
-        }
+        if (!isVerified) { alert('이메일 인증을 먼저 완료해주세요.'); return; }
         setIsLoading(true);
         try {
-            const res = await memberService.resetPassword({ memberId, memberName, mobilePhone });
+            const res = await memberService.resetPassword({ memberId, memberName, email });
             const result = res.data;
             if (result.status === 'SUCCESS') {
                 setTempPassword(result.data?.tempPassword);
@@ -99,7 +79,6 @@ const FindPassword = () => {
         }
     };
 
-    // 임시 비밀번호 발급 완료 화면
     if (tempPassword) {
         return (
             <div className="min-h-[calc(100vh-200px)] flex items-center justify-center bg-[#fcfcfc] px-6 py-20">
@@ -148,11 +127,11 @@ const FindPassword = () => {
                             placeholder="이름을 입력해주세요" required />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-[12px] font-bold text-[#666] ml-1">휴대폰 번호</label>
+                        <label className="text-[12px] font-bold text-[#666] ml-1">이메일</label>
                         <div className="flex gap-2">
-                            <input type="tel" value={mobilePhone} onChange={(e) => setMobilePhone(formatPhone(e.target.value))}
+                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                                 className="flex-1 border border-gray-200 px-4 py-3.5 text-sm focus:border-[#333] outline-none transition-all bg-[#f9f9f9] focus:bg-white"
-                                placeholder="010-0000-0000" required disabled={isVerified} />
+                                placeholder="가입 시 등록한 이메일" required disabled={isVerified} />
                             <button type="button" onClick={handleSendCode}
                                 disabled={isVerified || countdown > 0}
                                 className={`shrink-0 px-4 py-3.5 text-[13px] font-bold transition-all ${

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import PolicyModal from '../components/PolicyModal';
 import { POLICY_DATA } from '../data/policyData';
 import { authService } from '../api/authService';
+import memberService from '../api/memberService';
 import usePostcode from '../hooks/usePostcode';
 
 const Signup = () => {
@@ -13,6 +14,16 @@ const Signup = () => {
 
     // [상태 관리] 명세서 규격 반영
     const [memberType, setMemberType] = useState(null); // null=미선택, 'U'=일반, 'B'=기업
+    const [emailCodeSent, setEmailCodeSent] = useState(false);
+    const [emailVerified, setEmailVerified] = useState(false);
+    const [emailVerifyCode, setEmailVerifyCode] = useState('');
+    const [emailCountdown, setEmailCountdown] = useState(0);
+
+    useEffect(() => {
+        if (emailCountdown <= 0) return;
+        const t = setInterval(() => setEmailCountdown(prev => prev - 1), 1000);
+        return () => clearInterval(t);
+    }, [emailCountdown]);
 
     const [formData, setFormData] = useState({
         memberId: '',
@@ -156,6 +167,10 @@ const Signup = () => {
         }
         if (!isPwMatch) {
             alert('비밀번호가 일치하지 않습니다.');
+            return;
+        }
+        if (!emailVerified) {
+            alert('이메일 인증을 완료해주세요.');
             return;
         }
         if (!formData.address) {
@@ -386,17 +401,68 @@ const Signup = () => {
                         />
                     </div>
 
-                    {/* 이메일 */}
+                    {/* 이메일 (필수 + 인증) */}
                     <div className="flex flex-col gap-2">
-                        <label className="text-[12px] font-bold text-[#999] ml-1">이메일 <span className="font-normal text-[11px]">(선택)</span></label>
-                        <input
-                            name="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            className="w-full border border-gray-200 px-4 py-3.5 text-sm focus:border-[#333] outline-none bg-[#f9f9f9]"
-                            placeholder="example@nanum.com"
-                        />
+                        <label className="text-[12px] font-bold text-[#999] ml-1">이메일 <span className="text-red-400">*</span></label>
+                        <div className="flex gap-2">
+                            <input
+                                name="email"
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => { handleChange(e); setEmailVerified(false); setEmailCodeSent(false); }}
+                                className="flex-1 border border-gray-200 px-4 py-3.5 text-sm focus:border-[#333] outline-none bg-[#f9f9f9]"
+                                placeholder="example@nanum.com"
+                                disabled={emailVerified}
+                                required
+                            />
+                            <button type="button"
+                                disabled={emailVerified || emailCountdown > 0}
+                                onClick={async () => {
+                                    if (!formData.email || !formData.email.includes('@')) { alert('올바른 이메일을 입력해주세요.'); return; }
+                                    try {
+                                        const res = await memberService.sendEmailCode({ email: formData.email, purpose: 'SIGNUP' });
+                                        const result = res.data;
+                                        if (result.status === 'SUCCESS') {
+                                            setEmailCodeSent(true);
+                                            setEmailCountdown(180);
+                                            alert('인증번호가 발송되었습니다.' + (result.data?.devCode ? ` (개발모드: ${result.data.devCode})` : ''));
+                                        } else {
+                                            alert(result.message);
+                                        }
+                                    } catch (err) { alert(err.response?.data?.message || '인증번호 발송에 실패했습니다.'); }
+                                }}
+                                className={`shrink-0 px-4 py-3.5 text-[13px] font-bold transition-all ${
+                                    emailVerified ? 'bg-green-50 text-green-600 border border-green-200' :
+                                    emailCountdown > 0 ? 'bg-gray-100 text-gray-400 border border-gray-200' :
+                                    'bg-[#343434] text-white hover:bg-black'
+                                }`}>
+                                {emailVerified ? '인증완료' : emailCountdown > 0 ? `${Math.floor(emailCountdown/60)}:${String(emailCountdown%60).padStart(2,'0')}` : emailCodeSent ? '재발송' : '인증요청'}
+                            </button>
+                        </div>
+                        {emailCodeSent && !emailVerified && (
+                            <div className="flex gap-2">
+                                <input type="text" value={emailVerifyCode}
+                                    onChange={(e) => setEmailVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    className="flex-1 border border-gray-200 px-4 py-3 text-sm focus:border-[#333] outline-none bg-[#f9f9f9] tracking-[0.3em] text-center font-mono"
+                                    placeholder="인증번호 6자리" maxLength={6} />
+                                <button type="button"
+                                    onClick={async () => {
+                                        if (emailVerifyCode.length !== 6) { alert('인증번호 6자리를 입력해주세요.'); return; }
+                                        try {
+                                            const res = await memberService.verifyEmailCode({ email: formData.email, purpose: 'SIGNUP', code: emailVerifyCode });
+                                            if (res.data.status === 'SUCCESS') {
+                                                setEmailVerified(true);
+                                                setEmailCountdown(0);
+                                            } else {
+                                                alert(res.data.message);
+                                            }
+                                        } catch (err) { alert(err.response?.data?.message || '인증 실패'); }
+                                    }}
+                                    className="shrink-0 px-4 py-3 text-[13px] font-bold bg-[#968064] text-white hover:bg-[#7a6850] transition-all">
+                                    확인
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* 약관 동의 */}
