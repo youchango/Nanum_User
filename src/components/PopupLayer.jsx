@@ -78,14 +78,6 @@ const PopupLayer = () => {
                         }}
                         className="bg-white shadow-2xl rounded-lg overflow-hidden"
                     >
-                        {/* Close button */}
-                        <button
-                            onClick={() => handleClose(popup)}
-                            className="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors text-lg leading-none"
-                        >
-                            &times;
-                        </button>
-
                         {/* Content area */}
                         <div
                             style={{

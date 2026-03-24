@@ -16,6 +16,7 @@ import Cart from './pages/Cart';
 import { CartProvider } from './context/CartContext';
 import PrivateRoute from "./components/PrivateRoute.jsx";
 import NoticeList from "./pages/NoticeList.jsx";
+import FaqList from "./pages/FaqList.jsx";
 import NoticeDetail from "./pages/NoticeDetail.jsx";
 import MyPageEdit from "./pages/MyPageEdit.jsx";
 import Withdrawal from "./pages/Withdrawal.jsx";
@@ -84,6 +85,7 @@ function App() {
                             <Route path="privacy" element={<Privacy />} />
                             <Route path="notice" element={<NoticeList />} />
                             <Route path="notice/:id" element={<NoticeDetail />} />
+                            <Route path="faq" element={<FaqList />} />
 
                             {/* --- 로그인(PrivateRoute)이 필요한 페이지들 --- */}
                             <Route path="cart" element={<PrivateRoute><Cart /></PrivateRoute>} />
