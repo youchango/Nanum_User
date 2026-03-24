@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { categoryService } from '../api/categoryService';
 
 const Header = () => {
     const navigate = useNavigate();
@@ -11,6 +12,11 @@ const Header = () => {
     const [isHovered, setIsHovered] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [categories, setCategories] = useState([]);
+
+    useEffect(() => {
+        categoryService.getCategoryTree().then(setCategories).catch(() => {});
+    }, []);
 
     useEffect(() => {
         if (isMobileMenuOpen) {
@@ -30,19 +36,15 @@ const Header = () => {
         const token = localStorage.getItem('accessToken');
 
         if (userData && token) {
-            // JWT 만료 체크 (토큰의 payload에서 exp 추출)
             try {
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 if (payload.exp * 1000 < Date.now()) {
-                    // 토큰 만료 → 로그아웃 처리
                     localStorage.removeItem('accessToken');
                     localStorage.removeItem('user');
                     setUser(null);
                     return;
                 }
-            } catch (e) {
-                // 토큰 파싱 실패 → 무시 (API 호출 시 처리됨)
-            }
+            } catch (e) {}
             setUser(JSON.parse(userData));
         } else {
             setUser(null);
@@ -64,24 +66,27 @@ const Header = () => {
         navigate('/shop/login');
     };
 
+    // 주요 카테고리 5개만 헤더에 노출
+    const topCategories = categories.slice(0, 5).map(cat => ({
+        name: cat.name, url: `/shop/products?category=${cat.id}`
+    }));
+
     const menus = [
-        { title: '나눔 컬렉션', url: '/shop/products', sub: [{ name: '이달의 추천', url: '/shop/products' }, { name: '위시리스트', url: '/shop/mypage/wishlist' }] },
-        { title: '전체 상품', url: '/shop/products', sub: [{ name: '전체 보기', url: '/shop/products' }, { name: '신상품', url: '/shop/products' }] },
-        { title: '소식과 안내', url: '/shop/notice', sub: [{ name: '공지사항', url: '/shop/notice' }, { name: '브랜드 이야기', url: '/shop/main' }] },
-        { title: '나의 기록', url: '/shop/mypage', sub: [{ name: '주문/배송 조회', url: '/shop/mypage/orders' }, { name: '1:1 문의', url: '/shop/mypage/inquiries' }, { name: '마이페이지', url: '/shop/mypage/edit' }] }
+        { title: '전체 상품', url: '/shop/products', sub: [...topCategories, { name: '전체 카테고리 보기 →', url: '/shop/products' }] },
+        { title: '기획전', url: '/shop/products', sub: [{ name: '신상품', url: '/shop/products?sort=new' }, { name: '베스트', url: '/shop/products?sort=best' }] },
+        { title: '고객센터', url: '/shop/notice', sub: [{ name: '공지사항', url: '/shop/notice' }, { name: 'FAQ', url: '/shop/faq' }, { name: '1:1 문의', url: '/shop/mypage/inquiry/new' }] },
+        { title: '마이페이지', url: '/shop/mypage', sub: [{ name: '주문/배송', url: '/shop/mypage/orders' }, { name: '위시리스트', url: '/shop/mypage/wishlist' }, { name: '포인트/쿠폰', url: '/shop/mypage/points' }] }
     ];
 
     return (
         <>
             <header
-                /* ⭐️ [수정] transition-all을 transition-none으로 바꾸거나 duration을 0으로 만들어 잔상 제거 */
                 className={`fixed top-0 left-0 w-full z-[9999] select-none ${
                     isScrolled || isHovered || isMobileMenuOpen ? 'bg-white shadow-sm' : 'bg-transparent'
                 }`}
                 style={{
                     transform: 'translateZ(0)',
                     backfaceVisibility: 'hidden',
-                    /* 배경색만은 즉시 바뀌도록 강제(필요시) */
                     transition: isScrolled ? 'none' : 'background-color 0.3s ease-in-out'
                 }}
                 onMouseEnter={() => setIsHovered(true)}
@@ -96,24 +101,11 @@ const Header = () => {
                             <img src="/images/shop/index/header_logo2.png" alt="Nanum 로고" className="h-6 md:h-8 object-contain" />
                         </Link>
 
-                        {/* PC 메뉴 영역 */}
-                        <nav className="hidden md:flex items-center absolute left-1/2 -translate-x-1/2 h-full">
+                        {/* PC 메뉴 타이틀 */}
+                        <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 h-full">
                             {menus.map((menu, idx) => (
-                                <div key={idx} className={`h-full flex items-center transition-all duration-500 ease-in-out ${isHovered ? 'px-8 lg:px-10' : 'px-6 lg:px-8'}`}>
-                                    <div className="relative group py-2">
-                                        <Link to={menu.url} className="text-[15px] font-medium text-[#343434] hover:text-[#968064] transition-all whitespace-nowrap">{menu.title}</Link>
-
-                                        {/* ⭐️ 서브메뉴: 개별 박스가 아닌 전체를 덮는 메가메뉴 스타일로 위치 조정 */}
-                                        <div className={`absolute top-[52px] md:top-[60px] left-1/2 -translate-x-1/2 w-full transition-all duration-300 z-[100] ${isHovered ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
-                                            <ul className="py-6 flex flex-col items-center gap-3">
-                                                {menu.sub.map((subItem, sIdx) => (
-                                                    <li key={sIdx}>
-                                                        <Link to={subItem.url} className="text-[13px] text-[#666] hover:text-[#968064] block whitespace-nowrap transition-colors">{subItem.name}</Link>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    </div>
+                                <div key={idx} className="h-full flex items-center w-[160px] justify-center">
+                                    <Link to={menu.url} className="text-[15px] font-medium text-[#343434] hover:text-[#968064] transition-all whitespace-nowrap">{menu.title}</Link>
                                 </div>
                             ))}
                         </nav>
@@ -151,11 +143,25 @@ const Header = () => {
                     </div>
                 </div>
 
-                {/* ⭐️ PC 메가메뉴 배경 (이미지의 하얀색 가로 바 부분) */}
-                <div className={`hidden md:block absolute top-full left-0 w-full bg-white border-b border-gray-100 shadow-lg -z-10 transition-all duration-300 ${isHovered ? 'h-[180px] opacity-100' : 'h-0 opacity-0 invisible'}`} />
+                {/* PC 메가메뉴 서브 (absolute, header 내부) */}
+                <div className={`hidden md:block absolute top-full left-0 w-full bg-white border-b border-gray-100 shadow-lg z-[100] transition-all duration-300 ${isHovered ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none h-0'}`}>
+                    <div className="flex justify-center">
+                        {menus.map((menu, idx) => (
+                            <div key={idx} className="w-[160px] flex flex-col items-center">
+                                <ul className="flex flex-col items-center gap-2.5 pt-5 pb-8">
+                                    {menu.sub.map((subItem, sIdx) => (
+                                        <li key={sIdx}>
+                                            <Link to={subItem.url} className="text-[13px] text-[#666] hover:text-[#968064] block whitespace-nowrap transition-colors">{subItem.name}</Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </header>
 
-            {/* 모바일 메뉴 레이어 (헤더 외부에 분리 배치) */}
+            {/* 모바일 메뉴 */}
             <div className={`fixed inset-0 bg-white z-[9998] transition-transform duration-500 md:hidden ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                 <div className="pt-24 px-6 h-full overflow-y-auto pb-10 overscroll-contain bg-white">
                     <div className="mb-8 pb-6 border-b">
@@ -168,7 +174,7 @@ const Header = () => {
                                 <Link to="/shop/cart" className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-100" onClick={() => setIsMobileMenuOpen(false)}>
                                     <div className="flex items-center gap-3">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#343434]"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.1-5.38a1 1 0 0 0-1-1.2H6.14" /></svg>
-                                        <span className="text-[15px] font-bold text-[#343434]">나의 장바구니</span>
+                                        <span className="text-[15px] font-bold text-[#343434]">장바구니</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-[#E23600] font-bold text-sm">{cartCount}</span>
@@ -184,7 +190,17 @@ const Header = () => {
                             </div>
                         )}
                     </div>
-                    {menus.map((menu, idx) => (
+                    {/* 모바일: 전체 상품은 전체 카테고리 표시 */}
+                    <div className="mb-8">
+                        <h3 className="text-base font-bold text-[#343434] mb-4 flex items-center gap-2"><span className="w-1 h-4 bg-[#968064] rounded-full"></span>전체 상품</h3>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 pl-3">
+                            <Link to="/shop/products" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 py-2">전체 보기</Link>
+                            {categories.map((cat) => (
+                                <Link key={cat.id} to={`/shop/products?category=${cat.id}`} onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 py-2">{cat.name}</Link>
+                            ))}
+                        </div>
+                    </div>
+                    {menus.slice(1).map((menu, idx) => (
                         <div key={idx} className="mb-8">
                             <h3 className="text-base font-bold text-[#343434] mb-4 flex items-center gap-2"><span className="w-1 h-4 bg-[#968064] rounded-full"></span>{menu.title}</h3>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2 pl-3">
