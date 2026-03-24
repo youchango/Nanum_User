@@ -452,7 +452,9 @@ const ProductDetail = () => {
 
     const initialTab = searchParams.get('tab') === 'review' ? 1 : 0;
 
-    const [quantity, setQuantity] = useState(1);
+    const [quantity, setQuantity] = useState(1); // 옵션 없는 상품용
+    const [selectedOption, setSelectedOption] = useState(null); // 옵션 선택 중간 상태
+    const [selectedItems, setSelectedItems] = useState([]); // 선택된 옵션 목록 [{option, quantity}]
     const [activeTab, setActiveTab] = useState(initialTab);
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -513,27 +515,84 @@ const ProductDetail = () => {
         else if (type === 'minus' && quantity > 1) setQuantity(quantity - 1);
     };
 
-    const handleAddToCart = () => {
-        addToCart({
-            id: product.productId,
-            name: product.name,
-            price: product.price,
-            image: getMainImage(),
-        }, quantity);
+    const hasOptions = product?.optionYn === 'Y' && product?.options?.length > 0;
+
+    // 옵션 선택 완료 시 목록에 추가
+    const addSelectedItem = (opt) => {
+        const exists = selectedItems.find(si => si.option.optionId === opt.optionId);
+        if (exists) {
+            setSelectedItems(prev => prev.map(si =>
+                si.option.optionId === opt.optionId ? { ...si, quantity: si.quantity + 1 } : si
+            ));
+        } else {
+            setSelectedItems(prev => [...prev, { option: opt, quantity: 1 }]);
+        }
+        setSelectedOption(null);
     };
 
-    const handleDirectOrder = () => {
-        const user = localStorage.getItem('user');
-        const orderData = {
-            isDirect: true,
-            orderItems: [{
+    const updateItemQuantity = (optionId, delta) => {
+        setSelectedItems(prev => prev.map(si =>
+            si.option.optionId === optionId
+                ? { ...si, quantity: Math.max(1, si.quantity + delta) }
+                : si
+        ));
+    };
+
+    const removeItem = (optionId) => {
+        setSelectedItems(prev => prev.filter(si => si.option.optionId !== optionId));
+    };
+
+    const getOptionLabel = (opt) =>
+        `${opt.name1 || ''}${opt.name2 ? ' / ' + opt.name2 : ''}`;
+
+    const totalAmount = hasOptions
+        ? selectedItems.reduce((sum, si) => sum + (product.price + (si.option.extraPrice || 0)) * si.quantity, 0)
+        : product ? product.price * quantity : 0;
+
+    const handleAddToCart = () => {
+        if (hasOptions) {
+            if (selectedItems.length === 0) { alert('옵션을 선택해주세요.'); return; }
+            selectedItems.forEach(si => {
+                addToCart({
+                    id: product.productId,
+                    name: product.name,
+                    price: product.price + (si.option.extraPrice || 0),
+                    image: getMainImage(),
+                    optionId: si.option.optionId,
+                    optionName: getOptionLabel(si.option),
+                }, si.quantity);
+            });
+        } else {
+            addToCart({
                 id: product.productId,
                 name: product.name,
                 price: product.price,
                 image: getMainImage(),
-                quantity: quantity
-            }]
-        };
+            }, quantity);
+        }
+    };
+
+    const handleDirectOrder = () => {
+        if (hasOptions && selectedItems.length === 0) { alert('옵션을 선택해주세요.'); return; }
+        const user = localStorage.getItem('user');
+        const orderItems = hasOptions
+            ? selectedItems.map(si => ({
+                id: product.productId,
+                name: product.name,
+                price: product.price + (si.option.extraPrice || 0),
+                image: getMainImage(),
+                quantity: si.quantity,
+                optionId: si.option.optionId,
+                optionName: getOptionLabel(si.option),
+            }))
+            : [{
+                id: product.productId,
+                name: product.name,
+                price: product.price,
+                image: getMainImage(),
+                quantity: quantity,
+            }];
+        const orderData = { isDirect: true, orderItems };
 
         if (!user) {
             alert('로그인이 필요한 서비스입니다.');
@@ -617,25 +676,108 @@ const ProductDetail = () => {
                             </div>
                         </div>
 
-                        {/* 수량 선택 */}
-                        <div className="bg-[#fcfcfc] p-7 flex flex-col gap-5 border border-gray-50 rounded-sm">
-                            <div className="flex justify-between items-center text-sm font-semibold">
-                                <span className="text-[#555]">구매 수량</span>
-                                <div className="flex items-center border border-gray-200 bg-white shadow-sm overflow-hidden rounded-sm">
-                                    <button onClick={() => handleQuantity('minus')}
-                                            className="px-4 py-2 hover:bg-gray-100 transition-colors border-r border-gray-200 text-lg">-</button>
-                                    <input type="text" value={quantity} readOnly
-                                           className="w-12 text-center outline-none text-[15px] font-bold text-[#333]" />
-                                    <button onClick={() => handleQuantity('plus')}
-                                            className="px-4 py-2 hover:bg-gray-100 transition-colors border-l border-gray-200 text-lg">+</button>
+                        {/* 옵션 선택 (셀렉트박스 방식) */}
+                        {hasOptions && (() => {
+                            const title1 = product.options[0]?.title1;
+                            const title2 = product.options[0]?.title2;
+                            const name1Set = [...new Set(product.options.map(o => o.name1))];
+                            const selectedName1 = selectedOption?.name1 || '';
+                            const name2Options = title2 ? product.options.filter(o => o.name1 === selectedName1) : [];
+
+                            return (
+                                <div className="flex flex-col gap-3">
+                                    {/* 1차 옵션 셀렉트 */}
+                                    <select value={selectedName1}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (!val) { setSelectedOption(null); return; }
+                                            if (title2) {
+                                                setSelectedOption({ name1: val });
+                                            } else {
+                                                const opt = product.options.find(o => o.name1 === val);
+                                                if (opt) addSelectedItem(opt);
+                                            }
+                                        }}
+                                        className="w-full border border-gray-200 px-4 py-3 text-[13px] text-[#555] bg-white rounded-sm outline-none focus:border-[#333] transition-colors">
+                                        <option value="">{title1} 선택</option>
+                                        {name1Set.map(name => (
+                                            <option key={name} value={name}>{name}</option>
+                                        ))}
+                                    </select>
+
+                                    {/* 2차 옵션 셀렉트 */}
+                                    {title2 && selectedName1 && (
+                                        <select value=""
+                                            onChange={(e) => {
+                                                const optId = Number(e.target.value);
+                                                if (!optId) return;
+                                                const opt = product.options.find(o => o.optionId === optId);
+                                                if (opt) { addSelectedItem(opt); setSelectedOption(null); }
+                                            }}
+                                            className="w-full border border-gray-200 px-4 py-3 text-[13px] text-[#555] bg-white rounded-sm outline-none focus:border-[#333] transition-colors">
+                                            <option value="">{title2} 선택</option>
+                                            {name2Options.map(opt => (
+                                                <option key={opt.optionId} value={opt.optionId} disabled={opt.stockQuantity <= 0}>
+                                                    {opt.name2}{opt.extraPrice > 0 ? ` (+${opt.extraPrice.toLocaleString()}원)` : ''}{opt.stockQuantity <= 0 ? ' (품절)' : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+
+                                    {/* 선택된 옵션 목록 */}
+                                    {selectedItems.length > 0 && (
+                                        <div className="flex flex-col gap-2 mt-2">
+                                            {selectedItems.map(si => (
+                                                <div key={si.option.optionId} className="bg-[#f9f9f9] border border-gray-100 p-4 rounded-sm">
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <span className="text-[13px] text-[#555]">{getOptionLabel(si.option)}</span>
+                                                        <button onClick={() => removeItem(si.option.optionId)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <div className="flex items-center border border-gray-200 bg-white overflow-hidden rounded-sm">
+                                                            <button onClick={() => updateItemQuantity(si.option.optionId, -1)}
+                                                                className="px-3 py-1.5 hover:bg-gray-100 text-sm border-r border-gray-200">-</button>
+                                                            <span className="px-3 py-1.5 text-[13px] font-bold min-w-[36px] text-center">{si.quantity}</span>
+                                                            <button onClick={() => updateItemQuantity(si.option.optionId, 1)}
+                                                                className="px-3 py-1.5 hover:bg-gray-100 text-sm border-l border-gray-200">+</button>
+                                                        </div>
+                                                        <span className="text-[14px] font-bold text-[#333]">
+                                                            {((product.price + (si.option.extraPrice || 0)) * si.quantity).toLocaleString()}원
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
+                        {/* 옵션 없는 상품: 수량 선택 */}
+                        {!hasOptions && (
+                            <div className="bg-[#fcfcfc] p-7 flex flex-col gap-5 border border-gray-50 rounded-sm">
+                                <div className="flex justify-between items-center text-sm font-semibold">
+                                    <span className="text-[#555]">구매 수량</span>
+                                    <div className="flex items-center border border-gray-200 bg-white shadow-sm overflow-hidden rounded-sm">
+                                        <button onClick={() => handleQuantity('minus')}
+                                                className="px-4 py-2 hover:bg-gray-100 transition-colors border-r border-gray-200 text-lg">-</button>
+                                        <input type="text" value={quantity} readOnly
+                                               className="w-12 text-center outline-none text-[15px] font-bold text-[#333]" />
+                                        <button onClick={() => handleQuantity('plus')}
+                                                className="px-4 py-2 hover:bg-gray-100 transition-colors border-l border-gray-200 text-lg">+</button>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex justify-between items-end pt-5 border-t border-gray-100">
-                                <span className="text-[14px] font-bold text-gray-400 uppercase tracking-wider">총 상품금액</span>
-                                <span className="text-[28px] font-black text-[#333]">
-                                    {(product.price * quantity).toLocaleString()}원
-                                </span>
-                            </div>
+                        )}
+
+                        {/* 총 금액 */}
+                        <div className="flex justify-between items-end py-5 border-t border-gray-100">
+                            <span className="text-[14px] font-bold text-gray-400 uppercase tracking-wider">
+                                총 상품금액{hasOptions && selectedItems.length > 0 ? ` (${selectedItems.reduce((s, si) => s + si.quantity, 0)}개)` : ''}
+                            </span>
+                            <span className="text-[28px] font-black text-[#333]">
+                                {totalAmount.toLocaleString()}원
+                            </span>
                         </div>
 
                         {/* 구매 액션 버튼 */}

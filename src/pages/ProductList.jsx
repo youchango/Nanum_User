@@ -9,17 +9,39 @@ const ProductList = () => {
     const [searchParams] = useSearchParams();
     const { addToCart } = useCart();
 
-    const initialCategoryId = searchParams.get('category') ? Number(searchParams.get('category')) : null;
-
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
-    const [activeTab, setActiveTab] = useState(initialCategoryId ? 'all' : 'all');
-    const [selectedCategoryId, setSelectedCategoryId] = useState({ main: initialCategoryId, sub: null });
-    const [searchInput, setSearchInput] = useState(searchParams.get('search') || "");
-    const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || "");
+    const [activeTab, setActiveTab] = useState('all');
+    const [selectedCategoryId, setSelectedCategoryId] = useState({ main: null, sub: null });
+    const [searchInput, setSearchInput] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // URL 파라미터 변경 감지
+    useEffect(() => {
+        const catId = searchParams.get('category') ? Number(searchParams.get('category')) : null;
+        const search = searchParams.get('search') || '';
+        const sort = searchParams.get('sort') || '';
+
+        if (catId) {
+            setSelectedCategoryId({ main: catId, sub: null });
+            setActiveTab('all');
+        } else if (sort === 'best') {
+            setActiveTab('best');
+            setSelectedCategoryId({ main: null, sub: null });
+        } else if (sort === 'new') {
+            setActiveTab('new');
+            setSelectedCategoryId({ main: null, sub: null });
+        } else {
+            // 파라미터 없음 → 전체 초기화
+            setSelectedCategoryId({ main: null, sub: null });
+            setActiveTab('all');
+        }
+        setSearchInput(search);
+        setSearchQuery(search);
+    }, [searchParams]);
 
     const observerRef = useRef();
     const PAGE_SIZE = 12;
@@ -128,10 +150,10 @@ const ProductList = () => {
                         </svg>
                     </form>
 
-                    {/* 카테고리 바 */}
-                    <div className="relative text-[13px] font-bold text-[#bbb] py-1">
-                        <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
-                            <div className="flex gap-5 border-r pr-5 border-gray-200 shrink-0">
+                    {/* 카테고리 바 (PC만) */}
+                    <div className="relative text-[13px] font-bold text-[#bbb] py-1 hidden md:block">
+                        <div className="flex items-start gap-6">
+                            <div className="flex gap-5 border-r pr-5 border-gray-200 shrink-0 pt-0.5">
                                 {['all', 'best', 'new'].map(tab => (
                                     <button key={tab} onClick={() => { setActiveTab(tab); setSelectedCategoryId({ main: null, sub: null }); }}
                                             className={`transition-all uppercase pb-1 whitespace-nowrap ${activeTab === tab && !selectedCategoryId.main ? 'text-[#333] border-b-2 border-[#333]' : 'hover:text-[#333]'}`}>
@@ -140,32 +162,38 @@ const ProductList = () => {
                                 ))}
                             </div>
 
-                            <div className="flex gap-7 shrink-0">
+                            <div className="flex gap-x-5 gap-y-2 flex-wrap items-center">
                                 {categories.map((cat) => (
-                                    <div key={cat.id} className="relative group/cat">
-                                        <button onClick={() => { setSelectedCategoryId({ main: cat.id, sub: null }); setActiveTab('all'); }}
-                                                className={`transition-all pb-1 whitespace-nowrap ${selectedCategoryId.main === cat.id ? 'text-[#968064] border-b-2 border-[#968064]' : 'hover:text-[#333]'}`}>{cat.name}</button>
-
-                                    </div>
+                                    <button key={cat.id}
+                                        onClick={() => { setSelectedCategoryId({ main: cat.id, sub: null }); setActiveTab('all'); }}
+                                        className={`transition-all pb-1 whitespace-nowrap ${selectedCategoryId.main === cat.id ? 'text-[#968064] border-b-2 border-[#968064]' : 'hover:text-[#333]'}`}>
+                                        {cat.name}
+                                    </button>
                                 ))}
                             </div>
                         </div>
 
-                        {/* 2depth 서브카테고리 필 버튼 */}
-                        {categories.map((cat) => (
-                            cat.subs && cat.subs.length > 0 && selectedCategoryId.main === cat.id && (
-                                <div key={`sub-${cat.id}`} className="flex gap-2 flex-wrap pt-3 mt-2 border-t border-gray-100">
-                                    <button className={`px-3 py-1 text-[12px] rounded-full border transition-colors ${!selectedCategoryId.sub ? 'bg-[#968064] text-white border-[#968064]' : 'text-[#888] border-gray-200 hover:border-[#968064] hover:text-[#968064]'}`}
-                                        onClick={() => setSelectedCategoryId({ main: cat.id, sub: null })}>전체</button>
-                                    {cat.subs.map(sub => (
-                                        <button key={sub.id}
-                                            className={`px-3 py-1 text-[12px] rounded-full border transition-colors ${selectedCategoryId.sub === sub.id ? 'bg-[#968064] text-white border-[#968064]' : 'text-[#888] border-gray-200 hover:border-[#968064] hover:text-[#968064]'}`}
-                                            onClick={() => setSelectedCategoryId({ main: cat.id, sub: sub.id })}>{sub.name}</button>
-                                    ))}
-                                </div>
-                            )
-                        ))}
                     </div>
+
+                    {/* 모바일: 현재 카테고리 표시 */}
+                    {selectedCategoryId.main && (
+                        <p className="md:hidden text-[12px] text-[#968064] font-medium pt-2">{categories.find(c => c.id === selectedCategoryId.main)?.name}</p>
+                    )}
+
+                    {/* 2depth 서브카테고리 필 버튼 (PC/모바일 공통) */}
+                    {categories.map((cat) => (
+                        cat.subs && cat.subs.length > 0 && selectedCategoryId.main === cat.id && (
+                            <div key={`sub-${cat.id}`} className="flex gap-2 flex-wrap pt-3 mt-2 border-t border-gray-100 text-[13px] font-bold">
+                                <button className={`px-3 py-1 text-[12px] rounded-full border transition-colors ${!selectedCategoryId.sub ? 'bg-[#968064] text-white border-[#968064]' : 'text-[#888] border-gray-200 hover:border-[#968064] hover:text-[#968064]'}`}
+                                    onClick={() => setSelectedCategoryId({ main: cat.id, sub: null })}>전체</button>
+                                {cat.subs.map(sub => (
+                                    <button key={sub.id}
+                                        className={`px-3 py-1 text-[12px] rounded-full border transition-colors ${selectedCategoryId.sub === sub.id ? 'bg-[#968064] text-white border-[#968064]' : 'text-[#888] border-gray-200 hover:border-[#968064] hover:text-[#968064]'}`}
+                                        onClick={() => setSelectedCategoryId({ main: cat.id, sub: sub.id })}>{sub.name}</button>
+                                ))}
+                            </div>
+                        )
+                    ))}
                 </div>
             </div>
 
