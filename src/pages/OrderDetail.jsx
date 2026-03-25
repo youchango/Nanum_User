@@ -99,7 +99,7 @@ const OrderDetail = () => {
 
     const isDelivered = order.status === 'DELIVERED';
     const isCancelled = order.status === 'CANCELLED' || order.status === 'REFUNDED';
-    const canCancel = order.status === 'PAYMENT_WAIT' || order.status === 'PAID';
+    const canCancel = order.status === 'PAYMENT_WAIT' || order.status === 'PREPARING';
     const hasTracking = !!order.trackingNo;
 
     const handleCancel = async () => {

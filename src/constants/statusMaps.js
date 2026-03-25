@@ -1,11 +1,11 @@
 export const ORDER_STATUS_MAP = {
-    PAYMENT_WAIT: '결제 대기',
-    PAID: '결제 완료',
-    PREPARING: '상품 준비중',
+    PAYMENT_WAIT: '결제대기',
+    PREPARING: '배송준비',
     SHIPPING: '배송중',
-    DELIVERED: '배송 완료',
-    CANCELLED: '취소됨',
-    REFUNDED: '환불됨',
+    DELIVERED: '배송완료',
+    CANCELLED: '주문취소',
+    RETURN_REQUEST: '반품요청',
+    EXCHANGE_REQUEST: '교환요청',
 };
 
 export const TAX_BILL_STATUS_MAP = {
