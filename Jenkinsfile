@@ -2,12 +2,11 @@ pipeline {
     agent any
 
     environment {
-        // 이미지명: nanum-user (유지)
         DOCKER_IMAGE_NAME = "nanum-user"
-
-        // [변경] API URL: 실제 배포 도메인으로 설정
-        // nanum-server.ttcc.co.kr: Nanum Backend API 서버
         VITE_API_BASE_URL = "https://nanum-server.ttcc.co.kr/api/v1"
+
+        // [추가] 호스트 서버의 실제 이미지 저장 경로 (서버 환경에 맞춰 수정하세요)
+        HOST_UPLOAD_PATH = "/home/ttcc/nanum/upload"
     }
 
     stages {
@@ -21,7 +20,6 @@ pipeline {
         stage('Docker Build') {
             steps {
                 script {
-                    // VITE_API_BASE_URL을 빌드 인자로 주입하여 이미지 생성
                     sh """
                         docker build \
                             --build-arg VITE_API_BASE_URL=${VITE_API_BASE_URL} \
@@ -36,18 +34,17 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    // 기존 컨테이너 중지 및 제거
                     sh 'docker stop nanum-user || true'
                     sh 'docker rm nanum-user || true'
 
-                    // 신규 컨테이너 실행
-                    // 포트: 9023:80 (호스트:컨테이너)
-                    // NPM Proxy Manager: nanum.ttcc.co.kr -> localhost:9023
+                    // [수정] -v 옵션을 통해 호스트의 저장소와 컨테이너 내부 업로드 폴더 연결
+                    // 이제 컨테이너가 삭제되어도 HOST_UPLOAD_PATH에 있는 파일은 유지됩니다.
                     sh """
                         docker run -d \
                             --restart unless-stopped \
                             --name nanum-user \
                             -p 9023:80 \
+                            -v ${HOST_UPLOAD_PATH}:/usr/share/nginx/html/uploads \
                             ${DOCKER_IMAGE_NAME}:latest
                     """
                 }
@@ -56,7 +53,6 @@ pipeline {
 
         stage('Cleanup') {
             steps {
-                // 미사용 이미지 정리 (디스크 절약)
                 sh "docker image prune -f"
             }
         }
@@ -64,7 +60,7 @@ pipeline {
 
     post {
         success {
-            echo "nanum-user 배포 성공 (포트: 9023, API: ${VITE_API_BASE_URL})"
+            echo "nanum-user 배포 성공 (포트: 9023, 볼륨: ${HOST_UPLOAD_PATH})"
         }
         failure {
             echo "nanum-user 빌드/배포 실패"
