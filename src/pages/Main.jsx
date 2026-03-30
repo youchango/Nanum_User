@@ -29,6 +29,30 @@ const Main = () => {
     const [touchEnd, setTouchEnd] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
 
+    // ⭐️ 퀵 카테고리 항목 드래그를 위한 Ref와 State
+    const categoryRef = useRef(null);
+    const [isCatDragging, setIsCatDragging] = useState(false);
+    const [catStartX, setCatStartX] = useState(0);
+    const [catScrollLeft, setCatScrollLeft] = useState(0);
+
+    const onCatDragStart = (e) => {
+        setIsCatDragging(true);
+        setCatStartX(e.pageX - categoryRef.current.offsetLeft);
+        setCatScrollLeft(categoryRef.current.scrollLeft);
+    };
+
+    const onCatDragEnd = () => {
+        setIsCatDragging(false);
+    };
+
+    const onCatDragMove = (e) => {
+        if (!isCatDragging) return;
+        e.preventDefault();
+        const x = e.pageX - categoryRef.current.offsetLeft;
+        const walk = (x - catStartX) * 1.5; // 스크롤 속도
+        categoryRef.current.scrollLeft = catScrollLeft - walk;
+    };
+
     // ⭐️ 1depth 카테고리 로드
     useEffect(() => {
         const fetchCategories = async () => {
@@ -53,7 +77,7 @@ const Main = () => {
                         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
                         .map((b) => ({
                             id: b.id,
-                            imageUrl: b.files?.[0]?.imageUrl || null,
+                            imageUrl: b.imageUrl || null,
                             linkUrl: b.linkUrl || null,
                             title: '',
                             desc: '',
@@ -158,14 +182,28 @@ const Main = () => {
             </div>
 
             {/* 🍱 ⭐️ 실시간 퀵 카테고리 바 */}
-            <div className="px-4 mb-8 overflow-x-auto no-scrollbar">
+            <div 
+                ref={categoryRef}
+                className="px-4 mb-8 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none"
+                onMouseDown={onCatDragStart}
+                onMouseLeave={onCatDragEnd}
+                onMouseUp={onCatDragEnd}
+                onMouseMove={onCatDragMove}
+            >
                 <div className="flex justify-start md:justify-center gap-6 md:gap-12 min-w-max mx-auto max-w-[1200px]">
                     {/* '전체보기'는 고정으로 하나 둠 */}
-                    <Link to="/shop/products" className="flex flex-col items-center gap-2 group">
-                        <div className="w-11 h-11 md:w-12 md:h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center group-hover:bg-[#ebe6e0] transition-colors">
-                            <span className="text-[12px] md:text-[13px] font-semibold text-[#555]">All</span>
+                    <Link 
+                        to="/shop/products" 
+                        className="flex flex-col items-center gap-2 group"
+                        draggable={false}
+                        onClick={(e) => {
+                            if (Math.abs(catScrollLeft - categoryRef.current.scrollLeft) > 5) e.preventDefault();
+                        }}
+                    >
+                        <div className="w-11 h-11 md:w-12 md:h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center group-hover:bg-[#ebe6e0] transition-colors pointer-events-none">
+                            <span className="text-[12px] md:text-[13px] font-semibold text-[#555] pointer-events-none">All</span>
                         </div>
-                        <span className="text-[12px] md:text-[13px] font-medium text-gray-600 group-hover:text-[#968064]">전체보기</span>
+                        <span className="text-[12px] md:text-[13px] font-medium text-gray-600 group-hover:text-[#968064] pointer-events-none">전체보기</span>
                     </Link>
 
                     {categories.map((cat) => (
@@ -173,17 +211,21 @@ const Main = () => {
                             key={cat.id}
                             to={`/shop/products?category=${cat.id}`}
                             className="flex flex-col items-center gap-2 group"
+                            draggable={false}
+                            onClick={(e) => {
+                                if (Math.abs(catScrollLeft - categoryRef.current.scrollLeft) > 5) e.preventDefault();
+                            }}
                         >
-                            <div className="w-11 h-11 md:w-12 md:h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center group-hover:bg-[#ebe6e0] transition-colors overflow-hidden">
-                                {cat.iconImageUrl ? (
-                                    <img src={cat.iconImageUrl} alt={cat.name} className="w-7 h-7 md:w-8 md:h-8 object-contain" />
+                            <div className="w-11 h-11 md:w-12 md:h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center group-hover:bg-[#ebe6e0] transition-colors overflow-hidden pointer-events-none">
+                                {cat.imageUrl ? (
+                                    <img src={cat.imageUrl} alt={cat.name} className="w-7 h-7 md:w-8 md:h-8 object-contain pointer-events-none" draggable={false} />
                                 ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 md:w-6 md:h-6 text-[#999] group-hover:text-[#968064] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 md:w-6 md:h-6 text-[#999] group-hover:text-[#968064] transition-colors pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                                     </svg>
                                 )}
                             </div>
-                            <span className="text-[12px] md:text-[13px] font-medium text-gray-500 group-hover:text-[#968064] whitespace-nowrap">
+                            <span className="text-[12px] md:text-[13px] font-medium text-gray-500 group-hover:text-[#968064] whitespace-nowrap pointer-events-none">
                                 {cat.name}
                             </span>
                         </Link>
@@ -202,9 +244,16 @@ const Main = () => {
             >
                 <div className="flex transition-transform duration-700 ease-in-out h-full pointer-events-none" style={{ transform: `translateX(-${currentBanner * 100}%)` }}>
                     {banners.map((banner) => (
-                        <div
+                        <Link
                             key={banner.id}
-                            className="w-full h-full flex-shrink-0 relative flex flex-col items-center justify-center text-center px-4"
+                            to={banner.linkUrl || '/shop/products'}
+                            draggable={false}
+                            className="w-full h-full flex-shrink-0 relative flex flex-col items-center justify-center text-center px-4 pointer-events-auto"
+                            onClick={(e) => {
+                                if (Math.abs(touchStart - touchEnd) > 5) {
+                                    e.preventDefault();
+                                }
+                            }}
                             style={{
                                 backgroundColor: banner.imageUrl ? 'transparent' : banner.bg,
                                 backgroundImage: banner.imageUrl ? `url(${banner.imageUrl})` : 'none',
@@ -212,24 +261,14 @@ const Main = () => {
                                 backgroundPosition: 'center',
                             }}
                         >
-                            {/* Image banner: show VIEW MORE button only */}
-                            {banner.imageUrl ? (
-                                <div className="relative z-10 pointer-events-auto">
-                                    <Link
-                                        to={banner.linkUrl || '/shop/products'}
-                                        className="px-5 py-1.5 md:px-8 md:py-2 border border-white text-white text-[11px] md:text-[12px] font-bold hover:bg-white hover:text-[#333] transition-all rounded-sm inline-block backdrop-blur-sm bg-black/10"
-                                    >
-                                        VIEW MORE
-                                    </Link>
-                                </div>
-                            ) : (
-                                <div className="relative z-10 pointer-events-auto">
+                            {/* Image banner: nothing inside, whole area is clickable */}
+                            {banner.imageUrl ? null : (
+                                <div className="relative z-10 pointer-events-none flex flex-col items-center justify-center h-full">
                                     <span className="text-[10px] md:text-[14px] font-bold text-[#968064] tracking-[0.2em] uppercase mb-1 md:mb-2 block">{banner.desc}</span>
                                     <h1 className="text-[20px] md:text-[36px] font-black text-[#333] leading-tight mb-4 md:mb-6">{banner.title}</h1>
-                                    <Link to={banner.linkUrl || '/shop/products'} className="px-5 py-1.5 md:px-8 md:py-2 border border-[#333] text-[#333] text-[11px] md:text-[12px] font-bold hover:bg-[#333] hover:text-white transition-all rounded-sm inline-block">VIEW MORE</Link>
                                 </div>
                             )}
-                        </div>
+                        </Link>
                     ))}
                 </div>
                 <div className="absolute bottom-4 right-4 z-20 flex items-center gap-3">

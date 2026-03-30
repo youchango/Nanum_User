@@ -57,9 +57,10 @@ const NoticeDetail = () => {
 
             {/* 본문 영역 */}
             <section className="max-w-[800px] mx-auto px-6 py-12 md:py-20">
-                <div className="min-h-[400px] text-[#555] text-[15px] md:text-[16px] leading-loose whitespace-pre-wrap border-b border-gray-100 pb-20 font-light">
-                    {notice.contentBody}
-                </div>
+                <div 
+                    className="min-h-[400px] text-[#555] text-[15px] md:text-[16px] leading-[1.8] border-b border-gray-100 pb-20 font-light editor-content"
+                    dangerouslySetInnerHTML={{ __html: notice.contentBody }}
+                />
 
                 {/* 목록 버튼 */}
                 <div className="mt-12 flex justify-center">

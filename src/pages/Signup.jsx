@@ -193,6 +193,7 @@ const Signup = () => {
                 ...formData,
                 memberType,
                 phone: "",
+                marketingYn: agreements.marketing ? "Y" : "N"
             };
 
             // 3. API 호출

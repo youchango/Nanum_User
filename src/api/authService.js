@@ -40,6 +40,7 @@ export const authService = {
                 ceoName: signupData.ceoName || "",
                 businessType: signupData.businessType || "",
                 businessItem: signupData.businessItem || "",
+                marketingYn: signupData.marketingYn || "N",
                 phone: ""
             });
             return response.data;

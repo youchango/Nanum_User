@@ -19,7 +19,7 @@ const DescriptionTab = ({ product }) => {
     }
     return (
         <div className="py-10 px-2 md:px-6 text-[15px] text-[#444] leading-[1.9] font-light"
-             style={{ whiteSpace: 'pre-wrap' }}>
+            style={{ whiteSpace: 'pre-wrap' }}>
             {product.description}
         </div>
     );
@@ -32,9 +32,8 @@ const StarRating = ({ rating, onChange, size = 'text-lg' }) => {
             {[1, 2, 3, 4, 5].map(star => (
                 <span
                     key={star}
-                    className={`cursor-pointer select-none transition-colors ${
-                        (hover || rating) >= star ? 'text-yellow-400' : 'text-gray-200'
-                    }`}
+                    className={`cursor-pointer select-none transition-colors ${(hover || rating) >= star ? 'text-yellow-400' : 'text-gray-200'
+                        }`}
                     onClick={() => onChange?.(star)}
                     onMouseEnter={() => onChange && setHover(star)}
                     onMouseLeave={() => onChange && setHover(0)}
@@ -127,11 +126,10 @@ const ReviewTab = ({ productId, onCountChange }) => {
                             <p className="text-[14px] text-[#555] leading-[1.8] font-light whitespace-pre-wrap">{review.content}</p>
                             <button
                                 onClick={() => handleLike(review)}
-                                className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-[12px] transition-colors ${
-                                    review.isLiked
+                                className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-[12px] transition-colors ${review.isLiked
                                         ? 'border-red-200 text-red-400 bg-red-50'
                                         : 'border-gray-200 text-gray-400 hover:border-red-200 hover:text-red-400'
-                                }`}
+                                    }`}
                             >
                                 <span>{review.isLiked ? '♥' : '♡'}</span>
                                 <span>{review.likeCount || 0}</span>
@@ -153,11 +151,10 @@ const ReviewTab = ({ productId, onCountChange }) => {
                         <button
                             key={i}
                             onClick={() => setPage(i)}
-                            className={`w-9 h-9 flex items-center justify-center text-[13px] rounded-sm border transition-colors ${
-                                page === i
+                            className={`w-9 h-9 flex items-center justify-center text-[13px] rounded-sm border transition-colors ${page === i
                                     ? 'bg-[#343434] text-white border-[#343434] font-bold'
                                     : 'text-gray-400 border-gray-200 hover:bg-gray-50'
-                            }`}
+                                }`}
                         >{i + 1}</button>
                     ))}
                     <button
@@ -325,16 +322,15 @@ const QnATab = ({ productId }) => {
                                 className="flex items-center gap-3 cursor-pointer"
                                 onClick={() => setExpandedId(expandedId === inq.id ? null : inq.id)}
                             >
-                                <span className={`text-[12px] px-2 py-0.5 rounded-sm font-medium ${
-                                    inq.status === 'COMPLETE'
+                                <span className={`text-[12px] px-2 py-0.5 rounded-sm font-medium ${inq.status === 'COMPLETE'
                                         ? 'bg-green-50 text-green-600 border border-green-200'
                                         : 'bg-gray-50 text-gray-400 border border-gray-200'
-                                }`}>
+                                    }`}>
                                     {inq.statusDesc || (inq.status === 'COMPLETE' ? '답변완료' : '답변대기')}
                                 </span>
-                                {inq.isSecret && (
+                                {inq.isSecret === 'Y' && (
                                     <span className="text-[12px] px-2 py-0.5 rounded-sm font-medium bg-yellow-50 text-yellow-600 border border-yellow-200 inline-flex items-center gap-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                                         비밀글
                                     </span>
                                 )}
@@ -379,11 +375,10 @@ const QnATab = ({ productId }) => {
                         <button
                             key={i}
                             onClick={() => setPage(i)}
-                            className={`w-9 h-9 flex items-center justify-center text-[13px] rounded-sm border transition-colors ${
-                                page === i
+                            className={`w-9 h-9 flex items-center justify-center text-[13px] rounded-sm border transition-colors ${page === i
                                     ? 'bg-[#343434] text-white border-[#343434] font-bold'
                                     : 'text-gray-400 border-gray-200 hover:bg-gray-50'
-                            }`}
+                                }`}
                         >{i + 1}</button>
                     ))}
                     <button
@@ -460,6 +455,8 @@ const ProductDetail = () => {
     const [loading, setLoading] = useState(true);
     const [isWished, setIsWished] = useState(false);
     const [reviewCount, setReviewCount] = useState(0);
+
+    const isInactive = product?.deleteYn === 'Y' || product?.applyYn !== 'Y';
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -640,7 +637,7 @@ const ProductDetail = () => {
                             )}
                             {imgSrc ? (
                                 <img src={imgSrc} alt={product.name}
-                                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                             ) : (
                                 <div className="text-gray-300 text-lg uppercase tracking-widest font-bold px-4 text-center">
                                     {product.name}
@@ -658,6 +655,13 @@ const ProductDetail = () => {
                             <h2 className="text-[28px] md:text-[36px] font-medium text-[#333] mb-4 tracking-tight leading-tight">
                                 {product.name}
                             </h2>
+
+                            {isInactive && (
+                                <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-500 rounded-sm flex items-center gap-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                                    <span className="text-[14px] font-medium">현재 판매가 중단되었거나 삭제된 상품입니다.</span>
+                                </div>
+                            )}
 
                             <div className="flex items-center gap-4">
                                 {discountRate && (
@@ -760,11 +764,11 @@ const ProductDetail = () => {
                                     <span className="text-[#555]">구매 수량</span>
                                     <div className="flex items-center border border-gray-200 bg-white shadow-sm overflow-hidden rounded-sm">
                                         <button onClick={() => handleQuantity('minus')}
-                                                className="px-4 py-2 hover:bg-gray-100 transition-colors border-r border-gray-200 text-lg">-</button>
+                                            className="px-4 py-2 hover:bg-gray-100 transition-colors border-r border-gray-200 text-lg">-</button>
                                         <input type="text" value={quantity} readOnly
-                                               className="w-12 text-center outline-none text-[15px] font-bold text-[#333]" />
+                                            className="w-12 text-center outline-none text-[15px] font-bold text-[#333]" />
                                         <button onClick={() => handleQuantity('plus')}
-                                                className="px-4 py-2 hover:bg-gray-100 transition-colors border-l border-gray-200 text-lg">+</button>
+                                            className="px-4 py-2 hover:bg-gray-100 transition-colors border-l border-gray-200 text-lg">+</button>
                                     </div>
                                 </div>
                             </div>
@@ -783,16 +787,20 @@ const ProductDetail = () => {
                         {/* 구매 액션 버튼 */}
                         <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-4 flex gap-2 z-[100] md:relative md:bg-transparent md:border-none md:p-0 md:mt-4 md:z-auto">
                             <button onClick={handleWishToggle}
-                                    className="group w-14 h-14 border border-gray-200 flex items-center justify-center hover:border-red-400 bg-white transition-all shrink-0 rounded-sm active:scale-95">
+                                className="group w-14 h-14 border border-gray-200 flex items-center justify-center hover:border-red-400 bg-white transition-all shrink-0 rounded-sm active:scale-95">
                                 <span className={`text-2xl transition-colors ${isWished ? 'text-red-500' : 'text-gray-300 group-hover:text-red-500'}`}>&#9829;</span>
                             </button>
-                            <button onClick={handleAddToCart}
-                                    className="flex-1 h-14 border border-[#343434] text-[#343434] font-medium text-[14px] md:text-[15px] hover:bg-gray-50 transition-all bg-white rounded-sm active:bg-gray-100">
-                                장바구니
+                            <button onClick={isInactive ? null : handleAddToCart}
+                                disabled={isInactive}
+                                className={`flex-1 h-14 border border-[#343434] font-medium text-[14px] md:text-[15px] transition-all bg-white rounded-sm active:bg-gray-100 ${isInactive ? 'opacity-50 cursor-not-allowed text-gray-400 border-gray-200' : 'text-[#343434] hover:bg-gray-50'
+                                    }`}>
+                                {isInactive ? '구매 불가' : '장바구니'}
                             </button>
-                            <button onClick={handleDirectOrder}
-                                    className="flex-[2.5] h-14 bg-[#343434] text-white font-bold text-[14px] md:text-[15px] hover:bg-black active:scale-[0.97] transition-all shadow-md rounded-sm">
-                                바로 구매하기
+                            <button onClick={isInactive ? null : handleDirectOrder}
+                                disabled={isInactive}
+                                className={`flex-[2.5] h-14 font-bold text-[14px] md:text-[15px] transition-all shadow-md rounded-sm ${isInactive ? 'bg-gray-300 text-white cursor-not-allowed shadow-none' : 'bg-[#343434] text-white hover:bg-black active:scale-[0.97]'
+                                    }`}>
+                                {isInactive ? '판매 중지된 상품' : '바로 구매하기'}
                             </button>
                         </div>
                     </div>
@@ -803,8 +811,7 @@ const ProductDetail = () => {
                     <div className="flex justify-center gap-6 md:gap-16 relative">
                         {tabs.map((tab, idx) => (
                             <button key={idx} onClick={() => setActiveTab(idx)}
-                                    className={`relative py-10 text-[14px] md:text-[16px] transition-all duration-300 tracking-tight ${
-                                        activeTab === idx ? 'text-[#333] font-bold' : 'text-gray-300 hover:text-gray-500'
+                                className={`relative py-10 text-[14px] md:text-[16px] transition-all duration-300 tracking-tight ${activeTab === idx ? 'text-[#333] font-bold' : 'text-gray-300 hover:text-gray-500'
                                     }`}>
                                 {tab}
                                 {activeTab === idx && (

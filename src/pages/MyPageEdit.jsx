@@ -40,7 +40,7 @@ const MyPageEdit = () => {
                     zipcode: profile.zipcode || '',
                     address: profile.address || '',
                     addressDetail: profile.addressDetail || '',
-                    marketingAgreed: profile.smsYn === 'Y' || profile.emailYn === 'Y',
+                    marketingAgreed: profile.marketingYn === 'Y',
                     memberType: profile.memberType || 'U',
                     companyName: profile.companyName || '',
                     ceoName: profile.ceoName || '',
@@ -112,8 +112,7 @@ const MyPageEdit = () => {
                 addressDetail: formData.addressDetail,
                 currentPassword: formData.currentPassword || null,
                 password: formData.password || null,
-                smsYn: formData.marketingAgreed ? "Y" : "N",
-                emailYn: formData.marketingAgreed ? "Y" : "N",
+                marketingYn: formData.marketingAgreed ? "Y" : "N",
             });
             alert("정보가 수정되었습니다.");
             // 비밀번호 필드 초기화

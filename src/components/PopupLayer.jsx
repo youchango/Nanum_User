@@ -52,7 +52,7 @@ const PopupLayer = () => {
     return (
         <>
             {popups.map((popup) => {
-                const imageUrl = popup.files?.[0]?.imageUrl;
+                const imageUrl = popup.imageUrl;
                 const isCenter = (!popup.posX || popup.posX === 0) && (!popup.posY || popup.posY === 0);
 
                 const positionStyle = isCenter
