@@ -1,0 +1,359 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { categoryService } from '../api/categoryService';
+import productService from '../api/productService';
+import displayService from '../api/displayService';
+import { useCart } from '../context/CartContext';
+import PopupLayer from '../components/PopupLayer';
+import type { Category } from '../api/categoryService';
+import type { ProductListItem } from '../types/product';
+
+interface FeaturedProduct {
+    id: string;
+    name: string;
+    price: number;
+    suggestedPrice: number;
+    img: string;
+    categoryName: string;
+}
+
+interface Banner {
+    id: number;
+    title: string;
+    desc: string;
+    bg: string;
+    imageUrl?: string | null;
+    linkUrl?: string | null;
+}
+
+const Main = () => {
+    const navigate = useNavigate();
+    const { addToCart } = useCart();
+    const [searchQuery, setSearchQuery] = useState<string>("");
+    const [categories, setCategories] = useState<Category[]>([]); // ⭐️ 서버 카테고리 상태
+
+    const defaultBanners = [
+        { id: 1, title: "일상에 나눔을 더하다", desc: "Traditional & Modern Lifestyle", bg: "#ece0d1" },
+        { id: 2, title: "정갈한 식탁의 시작", desc: "Premium Organic Selection", bg: "#f4f1ee" },
+        { id: 3, title: "자연을 닮은 오브제", desc: "Eco-Friendly Living Item", bg: "#e5e7eb" }
+    ];
+    const [banners, setBanners] = useState<Banner[]>([]);
+    const [bannerLoaded, setBannerLoaded] = useState<boolean>(false);
+
+
+    const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
+
+    const [currentBanner, setCurrentBanner] = useState<number>(0);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const [touchStart, setTouchStart] = useState(0);
+    const [touchEnd, setTouchEnd] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
+
+    // ⭐️ 퀵 카테고리 항목 드래그를 위한 Ref와 State
+    const categoryRef = useRef<HTMLDivElement>(null);
+    const [isCatDragging, setIsCatDragging] = useState(false);
+    const [catStartX, setCatStartX] = useState(0);
+    const [catScrollLeft, setCatScrollLeft] = useState(0);
+
+    const onCatDragStart = (e: React.MouseEvent) => {
+        if (!categoryRef.current) return;
+        setIsCatDragging(true);
+        setCatStartX(e.pageX - categoryRef.current.offsetLeft);
+        setCatScrollLeft(categoryRef.current.scrollLeft);
+    };
+
+    const onCatDragEnd = () => {
+        setIsCatDragging(false);
+    };
+
+    const onCatDragMove = (e: React.MouseEvent) => {
+        if (!isCatDragging || !categoryRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - categoryRef.current.offsetLeft;
+        const walk = (x - catStartX) * 1.5; // 스크롤 속도
+        categoryRef.current.scrollLeft = catScrollLeft - walk;
+    };
+
+    // ⭐️ 1depth 카테고리 로드
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const data = await categoryService.getCategoryTree();
+                setCategories(data);
+            } catch (error) {
+                console.error("메인 카테고리 로드 실패");
+            }
+        };
+        fetchCategories();
+    }, []);
+
+    // 배너 API 로드
+    useEffect(() => {
+        const fetchBanners = async () => {
+            try {
+                const res = await displayService.getBanners('MAIN_TOP');
+                const data = res.data || [];
+                if (data.length > 0) {
+                    const apiBanners = data
+                        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+                        .map((b) => ({
+                            id: b.id,
+                            imageUrl: b.imageUrl || null,
+                            linkUrl: b.linkUrl || null,
+                            title: '',
+                            desc: '',
+                            bg: '#f4f1ee',
+                        }));
+                    setBanners(apiBanners);
+                } else {
+                    setBanners(defaultBanners);
+                }
+            } catch (error) {
+                console.error('배너 로드 실패, 기본 배너 사용');
+                setBanners(defaultBanners);
+            } finally {
+                setBannerLoaded(true);
+            }
+        };
+        fetchBanners();
+    }, []);
+
+    // 메인 상품 로드
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const res = await productService.getMainProducts({ recordSize: 8 });
+                const content = (res as any).data?.content || [];
+                setFeaturedProducts(content.map((p: any) => ({
+                    id: p.productId,
+                    name: p.name,
+                    price: p.price,
+                    suggestedPrice: p.suggestedPrice,
+                    img: (p.images && p.images.length > 0) ? (p.images.find((i: any) => i.isMain === 'Y') || p.images[0]).url : '/images/no-image.jpg',
+                    categoryName: p.categoryName,
+                })));
+            } catch (error) {
+                console.error("메인 상품 로드 실패");
+            }
+        };
+        fetchProducts();
+    }, []);
+
+    const startTimer = useCallback(() => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => {
+            setCurrentBanner((prev) => (prev === banners.length - 1 ? 0 : prev + 1));
+        }, 5000);
+    }, [banners.length]);
+
+    useEffect(() => {
+        startTimer();
+        return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    }, [startTimer]);
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(!searchQuery.trim()) return;
+        navigate(`/shop/products?search=${searchQuery}`);
+    };
+
+    const handleManualChange = (index: number) => { setCurrentBanner(index); startTimer(); };
+    const nextSlide = () => handleManualChange(currentBanner === banners.length - 1 ? 0 : currentBanner + 1);
+    const prevSlide = () => handleManualChange(currentBanner === 0 ? banners.length - 1 : currentBanner - 1);
+
+    const handleStart = (e: React.TouchEvent | React.MouseEvent) => {
+        const clientX = 'targetTouches' in e ? e.targetTouches[0].clientX : e.clientX;
+        setTouchStart(clientX); setTouchEnd(clientX); setIsDragging(true);
+    };
+    const handleMove = (e: React.TouchEvent | React.MouseEvent) => {
+        if (!isDragging) return;
+        const clientX = 'targetTouches' in e ? e.targetTouches[0].clientX : e.clientX;
+        setTouchEnd(clientX);
+    };
+    const handleEnd = () => {
+        if (!isDragging) return;
+        setIsDragging(false);
+        const distance = touchStart - touchEnd;
+        if (Math.abs(distance) > 50) {
+            if (distance > 0) nextSlide();
+            else prevSlide();
+        }
+    };
+
+    return (
+        <div className="w-full select-none pt-[60px] md:pt-[76px] bg-white">
+
+            {/* 팝업 레이어 */}
+            <PopupLayer />
+
+            {/* 🔍 검색 영역 */}
+            <div className="px-4 py-4 md:py-6 max-w-[1200px] mx-auto">
+                <form onSubmit={handleSearch} className="relative group">
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="어떤 상품을 찾으시나요?"
+                        className="w-full h-12 md:h-14 pl-12 pr-4 bg-gray-50 border-none rounded-2xl text-[14px] md:text-[16px] focus:ring-2 focus:ring-[#968064]/20 transition-all outline-none"
+                    />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-[#968064] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </form>
+            </div>
+
+            {/* 🍱 ⭐️ 실시간 퀵 카테고리 바 */}
+            <div 
+                ref={categoryRef}
+                className="px-4 mb-8 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none"
+                onMouseDown={onCatDragStart}
+                onMouseLeave={onCatDragEnd}
+                onMouseUp={onCatDragEnd}
+                onMouseMove={onCatDragMove}
+            >
+                <div className="flex justify-start md:justify-center gap-6 md:gap-12 min-w-max mx-auto max-w-[1200px]">
+                    {/* '전체보기'는 고정으로 하나 둠 */}
+                    <Link 
+                        to="/shop/products" 
+                        className="flex flex-col items-center gap-2 group"
+                        draggable={false}
+                        onClick={(e) => {
+                            if (!categoryRef.current) return;
+                            if (Math.abs(catScrollLeft - categoryRef.current.scrollLeft) > 5) e.preventDefault();
+                        }}
+                    >
+                        <div className="w-11 h-11 md:w-12 md:h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center group-hover:bg-[#ebe6e0] transition-colors pointer-events-none">
+                            <span className="text-[12px] md:text-[13px] font-semibold text-[#555] pointer-events-none">All</span>
+                        </div>
+                        <span className="text-[12px] md:text-[13px] font-medium text-gray-600 group-hover:text-[#968064] pointer-events-none">전체보기</span>
+                    </Link>
+
+                    {categories.map((cat) => (
+                        <Link
+                            key={cat.id}
+                            to={`/shop/products?category=${cat.id}`}
+                            className="flex flex-col items-center gap-2 group"
+                            draggable={false}
+                            onClick={(e) => {
+                                if (!categoryRef.current) return;
+                                if (Math.abs(catScrollLeft - categoryRef.current.scrollLeft) > 5) e.preventDefault();
+                            }}
+                        >
+                            <div className="w-11 h-11 md:w-12 md:h-12 bg-[#f5f5f5] rounded-xl flex items-center justify-center group-hover:bg-[#ebe6e0] transition-colors overflow-hidden pointer-events-none">
+                                {cat.imageUrl ? (
+                                    <img src={cat.imageUrl} alt={cat.name} className="w-7 h-7 md:w-8 md:h-8 object-contain pointer-events-none" draggable={false} />
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 md:w-6 md:h-6 text-[#999] group-hover:text-[#968064] transition-colors pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                    </svg>
+                                )}
+                            </div>
+                            <span className="text-[12px] md:text-[13px] font-medium text-gray-500 group-hover:text-[#968064] whitespace-nowrap pointer-events-none">
+                                {cat.name}
+                            </span>
+                        </Link>
+                    ))}
+                </div>
+            </div>
+
+            {/* 📸 배너 섹션 */}
+            {!bannerLoaded ? (
+                <div className="h-[250px] md:h-[450px] w-full bg-[#f4f1ee] border-y border-gray-50" />
+            ) :
+            <section
+                className="relative h-[250px] md:h-[450px] w-full overflow-hidden bg-white cursor-grab active:cursor-grabbing border-y border-gray-50"
+                onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
+                onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd}
+            >
+                <div className="flex transition-transform duration-700 ease-in-out h-full pointer-events-none" style={{ transform: `translateX(-${currentBanner * 100}%)` }}>
+                    {banners.map((banner) => (
+                        <Link
+                            key={banner.id}
+                            to={banner.linkUrl || '/shop/products'}
+                            draggable={false}
+                            className="w-full h-full flex-shrink-0 relative flex flex-col items-center justify-center text-center px-4 pointer-events-auto"
+                            onClick={(e) => {
+                                if (Math.abs(touchStart - touchEnd) > 5) {
+                                    e.preventDefault();
+                                }
+                            }}
+                            style={{
+                                backgroundColor: banner.imageUrl ? 'transparent' : banner.bg,
+                                backgroundImage: banner.imageUrl ? `url(${banner.imageUrl})` : 'none',
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                            }}
+                        >
+                            {/* Image banner: nothing inside, whole area is clickable */}
+                            {banner.imageUrl ? null : (
+                                <div className="relative z-10 pointer-events-none flex flex-col items-center justify-center h-full">
+                                    <span className="text-[10px] md:text-[14px] font-bold text-[#968064] tracking-[0.2em] uppercase mb-1 md:mb-2 block">{banner.desc}</span>
+                                    <h1 className="text-[20px] md:text-[36px] font-black text-[#333] leading-tight mb-4 md:mb-6">{banner.title}</h1>
+                                </div>
+                            )}
+                        </Link>
+                    ))}
+                </div>
+                <div className="absolute bottom-4 right-4 z-20 flex items-center gap-3">
+                    <div className="text-[10px] md:text-[11px] font-bold text-[#333] tracking-widest">{currentBanner + 1} / {banners.length}</div>
+                </div>
+            </section>
+            }
+
+            {/* 추천 상품 섹션 */}
+            <section className="py-16 md:py-24 px-6 bg-white">
+                <div className="max-w-[1200px] mx-auto">
+                    <div className="flex flex-col items-center mb-12">
+                        <h2 className="text-[20px] md:text-[28px] font-bold text-[#333] tracking-wider uppercase">New Arrival</h2>
+                        <div className="w-10 h-[2px] bg-[#968064] mt-3"></div>
+                        <p className="text-gray-400 mt-4 text-[13px] md:text-[14px]">나눔이 제안하는 이번 시즌 정갈한 아이템</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10 md:gap-x-6 md:gap-y-16">
+                        {featuredProducts.map((product) => {
+                            const discountRate = product.suggestedPrice && product.suggestedPrice > product.price
+                                ? Math.floor(((product.suggestedPrice - product.price) / product.suggestedPrice) * 100)
+                                : null;
+                            return (
+                                <Link key={product.id} to={`/shop/product/${product.id}`} className="group">
+                                    <div className="aspect-[3/4] bg-[#f9f9f9] overflow-hidden mb-4 relative">
+                                        {discountRate && (
+                                            <div className="absolute top-0 right-0 bg-[#E23600] text-white text-[11px] font-bold px-3 py-1.5 z-10 shadow-sm">{discountRate}% OFF</div>
+                                        )}
+                                        {product.img && product.img !== '/images/no-image.jpg' ? (
+                                            <img src={product.img} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">No Image</div>
+                                        )}
+                                        <button
+                                            className="absolute bottom-0 left-0 w-full bg-[#333]/90 py-4 text-white text-[12px] font-bold translate-y-full group-hover:translate-y-0 transition-transform"
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart({ id: product.id, name: product.name, price: product.price, image: product.img }, 1); }}
+                                        >장바구니 담기</button>
+                                    </div>
+                                    <div className="text-center md:text-left">
+                                        <p className="text-[10px] text-[#968064] font-bold uppercase mb-1">{product.categoryName}</p>
+                                        <h3 className="text-[14px] md:text-[15px] font-medium text-[#333] mb-1 line-clamp-1 group-hover:text-[#968064] transition-colors">{product.name}</h3>
+                                        <div className="flex items-center justify-center md:justify-start gap-2">
+                                            <p className="text-[14px] md:text-[16px] font-bold text-[#333]">{product.price?.toLocaleString()}원</p>
+                                            {product.suggestedPrice > product.price && (
+                                                <p className="text-[12px] text-gray-400 line-through font-light">{product.suggestedPrice?.toLocaleString()}원</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+
+                    <div className="mt-20 text-center">
+                        <Link to="/shop/products" className="inline-block px-12 py-4 border border-gray-200 text-[13px] font-bold text-[#666] hover:bg-gray-50 transition-all">
+                            전체 상품 보러가기
+                        </Link>
+                    </div>
+                </div>
+            </section>
+        </div>
+    );
+};
+
+export default Main;
